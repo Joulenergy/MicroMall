@@ -6,7 +6,7 @@ MicroMall's name is inspired by how it is created, using microservices and conta
 ### How to use the application
 
 ### Technologies I used
-React Framework
+React
 Node.js
 Express.js
 RabbitMQ
