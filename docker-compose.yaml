@@ -9,16 +9,24 @@ services:
 
   cart-service:
     build: ./cart-service
-    container_name: cart
+    container_name: cart-service
     depends_on:
       - rabbitmq
     stdin_open: true
     tty: true
+    volumes: # for development
+      - ./cart-service:/app
+      - /app/node_modules
 
   product-service:
     build: ./product-service
-    container_name: product
+    container_name: product-service
     depends_on:
       - rabbitmq
     stdin_open: true
     tty: true
+    volumes: # for development
+      - ./product-service:/app
+      - /app/node_modules
+    ports:
+      - '5000:5000'

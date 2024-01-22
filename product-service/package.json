@@ -10,7 +10,8 @@
   "author": "Joulene",
   "license": "ISC",
   "dependencies": {
-    "amqplib": "^0.10.3"
+    "amqplib": "^0.10.3",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"

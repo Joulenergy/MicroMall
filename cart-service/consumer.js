@@ -24,8 +24,10 @@ async function connect(){
         const channel = await conn.createChannel();
         console.log('Channel created...');
 
-        const res = await channel.assertQueue(queue, {durable: true});
+        await channel.assertQueue(queue, {durable: true});
         console.log('Queue created...');
+
+        channel.prefetch(1); // allows for fair distribution of tasks
 
         console.log(`Waiting for messages from ${service}...`);
         // consume messages
@@ -40,6 +42,11 @@ async function connect(){
         },{
             noAck: false // ensures even if terminate consumer as it is processing, no task is lost, and is redelivered
         });
+
+        // setTimeout(() => {
+        //     conn.close();
+        //     process.exit(0);
+        // },500)
 
     } catch (err) {
         console.error(`Error -> ${err}`);
