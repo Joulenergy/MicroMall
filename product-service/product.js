@@ -24,7 +24,7 @@ async function addtocart(){
         const conn = await amqp.connect(rabbitSettings);
         console.log('Connection created...');
 
-        const channel = await conn.createChannel();
+        const channel = await conn.createConfirmChannel();
         console.log('Channel created...');
 
         await channel.assertQueue(queue, {durable: true});
@@ -57,7 +57,7 @@ async function removefromcart(){
         const conn = await amqp.connect(rabbitSettings);
         console.log('Connection created...');
 
-        const channel = await conn.createChannel();
+        const channel = await conn.createConfirmChannel();
         console.log('Channel created...');
 
         await channel.assertQueue(queue, {durable: true});
@@ -65,8 +65,16 @@ async function removefromcart(){
 
         // send messages
         for (let msg in msgs) {
-            await channel.sendToQueue(queue, Buffer.from(JSON.stringify(msgs[msg])), {persistent: true})
-            console.log(`Message sent to ${queue} queue...`)
+            await channel.sendToQueue(queue, Buffer.from(JSON.stringify(msgs[msg])), {persistent: true},
+            (err, ok) => {
+                if (err !== null)
+                    console.warn('Message nacked!');
+                    
+                else
+                    console.log('Message acked');
+                    console.log(`Message sent to ${queue} queue...`)
+            })
+            
         }
 
         setTimeout(() => {
@@ -76,7 +84,7 @@ async function removefromcart(){
 
     } catch (err) {
         console.error(`Error removing from cart -> ${err}`);
-    }
+    } 
 }
 
 async function checkedstocks(){

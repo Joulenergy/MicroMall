@@ -5,7 +5,7 @@
   "main": "producer.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --legacy-watch producer.js"
+    "start": "nodemon --legacy-watch product.js"
   },
   "author": "Joulene",
   "license": "ISC",

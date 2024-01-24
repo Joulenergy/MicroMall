@@ -7,6 +7,28 @@ services:
       - '15672:15672'
     container_name: rabbitmq
 
+  auth-mongo:
+    image: mongo
+    container_name: auth-mongo
+    volumes:
+      - auth-data:/data/db
+    ports:
+      - 27017:27017
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    depends_on:
+      - auth-mongo
+      - rabbitmq
+    stdin_open: true
+    tty: true
+    ports:
+      - 5001:5001
+    volumes: # for development
+      - ./auth-service:/app
+      - /app/node_modules
+
   cart-service:
     build: ./cart-service
     container_name: cart-service
@@ -30,3 +52,6 @@ services:
       - /app/node_modules
     ports:
       - '5000:5000'
+
+volumes:
+  auth-data:
