@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const User = require("./User");
+const User = require("./user");
 const ejs = require('ejs')
 const amqp = require("amqplib");
 const rabbitSettings = {
@@ -13,6 +13,11 @@ const rabbitSettings = {
     vhost: '/',
     authMechanism: ['PLAIN','AMQPLAIN', 'EXTERNAL']
 }
+
+// middleware
+app.set('view engine', 'ejs');
+app.use(express.json());
+app.use(express.urlencoded({extended:true}))
 
 async function goToProducts(email){
     const queue = 'loginDone';
@@ -48,10 +53,6 @@ async function goToProducts(email){
     } 
 }
 
-app.set('view engine', 'ejs');
-app.use(express.json());
-app.use(express.urlencoded({extended:true}))
-
 // connect to mongodb container
 mongoose.connect(`mongodb://auth-mongo:27017/users`).then(() => {
     console.log(`Auth Service DB Connected`);
@@ -72,9 +73,8 @@ app.route("/login")
             res.render("login", {fail: "Invalid Email or Password"});
         } else {
             //send to product queue
-            goToProducts(user.email);
-            // redirect to product-service page
-            res.redirect('http://localhost:5000')
+            await goToProducts(user._id)
+            res.redirect('http://localhost:5000') // redirect to product-service page
         }
     }
 });

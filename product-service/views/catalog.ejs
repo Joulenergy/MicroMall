@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MicroMall Catalog Page</title>
+    <style>
+      .product-card {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-evenly;
+        align-items: center;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .product-card img {
+        width: 100%;
+        max-width: 300px;
+        max-height: 300px;
+        object-fit: cover;
+        height: auto;
+        margin-bottom: 20px;
+      }
+
+      .product-card h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+
+      .product-card p {
+        font-size: 16px;
+        margin-bottom: 20px;
+      }
+
+      .product-card button {
+        background-color: #000;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .product-card input {
+        padding: 10px 10px;
+        margin-right: 10px;
+      }
+
+      .product-card button:hover {
+        background-color: #fff;
+        color: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Products</h2>
+    <a href="http://localhost:5004">Go To Cart</a>
+    <% items.forEach(function(item) { %>
+    <div class="product-card">
+      <img
+        src="data:image/<%=item.image.contentType%>; base64, <%=item.image.data.toString('base64')%>"
+        style="width: 100%"
+      />
+      <h2><%= item.name %></h2>
+      <p class="price">$ <%= item.price %></p>
+      <form action="/addtocart" method="post">
+        <input type="number" name="qty" min="1" max=<%= item.quantity %>>
+        <input type="hidden" name="name" value=<% item.name %>>
+        <input type="hidden" name="price" value=<% item.price %>>
+        <button type="submit">Add to Cart</button>
+      </form>
+    </div>
+    <% }); %>
+  </body>
+</html>

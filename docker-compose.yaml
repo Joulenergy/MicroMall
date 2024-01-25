@@ -13,7 +13,7 @@ services:
     volumes:
       - auth-data:/data/db
     ports:
-      - 27017:27017
+      - 5002:27017
 
   auth-service:
     build: ./auth-service
@@ -39,12 +39,23 @@ services:
     volumes: # for development
       - ./cart-service:/app
       - /app/node_modules
+    ports:
+      - '5004:5004'
+
+  product-mongo:
+    image: mongo
+    container_name: product-mongo
+    volumes:
+      - product-data:/data/db
+    ports:
+      - 5003:27017
 
   product-service:
     build: ./product-service
     container_name: product-service
     depends_on:
       - rabbitmq
+      - product-mongo
     stdin_open: true
     tty: true
     volumes: # for development
@@ -55,3 +66,4 @@ services:
 
 volumes:
   auth-data:
+  product-data:

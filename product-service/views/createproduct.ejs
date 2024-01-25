@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Product Page</title>
+</head>
+<body>
+    <h2>Create New Product</h2>
+    <form action="/createproduct" method="post" enctype="multipart/form-data">
+        <label for="name">Name:</label>
+        <input required id="name" name="name" type="text"><br>
+
+        <label for="qty">Quantity: </label>
+        <input required id="qty" name="qty" type="number" min="1"><br>
+
+        <label for="image">Image: </label>
+        <input required id="image" name="image" type="file"><br>
+        
+        <label for="price">Price: </label>
+        <input required id="price" name="price" type="number" min="0"><br>
+
+        <input type="submit" value="Create New Product">
+        <p style="color:'red'"><%= locals.fail %></p>
+    </form>
+    <a href="/">Back to catalog page</a>
+</body>
+</html>
