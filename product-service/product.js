@@ -3,7 +3,6 @@ const app = express();
 const mongoose = require("mongoose");
 const Products = require("./products");
 const amqp = require("amqplib");
-const ejs = require('ejs')
 
 // for storing image into mongodb
 const fs = require('fs')
@@ -11,7 +10,11 @@ const path = require('path')
 const multer = require('multer');
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads')
+        const folderPath = 'productimages';
+        if (!fs.existsSync(folderPath)) {
+            fs.mkdirSync(folderPath);
+        }
+        cb(null, folderPath)
     },
     filename: (req, file, cb) => {
         cb(null, file.fieldname + '-' + Date.now())
@@ -44,7 +47,6 @@ const rabbitSettings = {
 }
 
 // middleware
-app.set('view engine', 'ejs');
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
 
@@ -73,8 +75,9 @@ async function sendItem(queue, msg){
     }
 }
 
-async function checkedstocks(){
-    const queue = 'checkedstocks';
+async function getUser(){
+    const queue = 'loginDone';
+    const service = 'Auth Service'
 
     try {
         const conn = await amqp.connect(rabbitSettings);
@@ -86,21 +89,33 @@ async function checkedstocks(){
         await channel.assertQueue(queue, {durable: true});
         console.log('Queue created...');
 
-        // // send messages
-        // for (let msg in msgs) {
-        //     await channel.sendToQueue(queue, Buffer.from(JSON.stringify(msgs[msg])), {persistent: true})
-        //     console.log(`Message sent to ${queue} queue...`)
-        // }
+        channel.prefetch(1); // not realistic setting, allows for simulating fair distribution of tasks
 
-        setTimeout(() => {
-            conn.close();
-            process.exit(0);
-        },500)
+        console.log(`Waiting for messages from ${service}...`);
+        // consume messages
+        channel.consume(queue, (message) => {
+            let id = JSON.parse(message.content.toString());
+            console.log(`Received id ${id}`);
+
+            channel.ack(message) // to remove message from queue
+            console.log('Dequeued message...')
+
+            setTimeout(() => {
+                conn.close();
+                process.exit(0);
+            },500)
+    
+            return id
+
+        },{noAck: false});
 
     } catch (err) {
-        console.error(`Error sending checked stocks -> ${err}`);
+        console.error(`Error Receiving ID -> ${err}`);
     }
 }
+
+// user id who is using cart
+const id = getUser() //consume from loginDone queue
 
 // connect to mongodb container
 mongoose.connect(`mongodb://product-mongo:27017/products`).then(() => {
@@ -123,26 +138,38 @@ app.route("/createproduct")
         res.render("createproduct");
     })
     .post(upload.single('image'), (req, res) => {
-        const { name, qty, price } = req.body;
+        const folderPath = 'productimages';
+        let { name, qty, price } = req.body;
+        name = name.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            });
         const newProduct = new Products({
             name,
             quantity: qty,
             image: {
-                data: fs.readFileSync(path.join(__dirname + '/uploads/' + req.file.filename)),
+                data: fs.readFileSync(path.join(__dirname + `/${folderPath}/` + req.file.filename)),
                 contentType: req.file.contentType
             },
             price
         });
         newProduct.save();
+        //clear productimages folder
+        if (fs.existsSync(folderPath)) {
+            const files = fs.readdirSync(folderPath);
+            if (files.length > 0) {
+              for (const file of files) {
+                const filePath = path.join(folderPath, file);
+                fs.unlinkSync(filePath);
+              }
+            }
+          }
         return res.json(newProduct);
     })
 
 app.post("/addtocart", async (req, res) => {
-    // add consume email here to send as well
-    // figure out a way to clear the uploads folder
     const {name, price, qty} = req.body;
-    await sendItem('addtocart',{name, price, qty});
-    res.redirect('/')
+    await sendItem('addtocart',{id, name, price, qty}); // global id
+    res.redirect('/');
 })
 
 app.get("/checkedstocks", (req, res) => {

@@ -1,100 +1,112 @@
-const express = require("express");
-const app = express();
-const mongoose = require("mongoose");
-const User = require("./user");
-const ejs = require('ejs')
-const amqp = require("amqplib");
-const rabbitSettings = {
-    protocol: 'amqp',
-    hostname: 'host.docker.internal',
-    port: 5672,
-    username: 'guest',
-    password: 'guest',
-    vhost: '/',
-    authMechanism: ['PLAIN','AMQPLAIN', 'EXTERNAL']
+const User = require("./User");
+const rabbitmq = require("./rabbitmq"); // to create connection only once
+const mongo = require("./mongo");
+
+async function consume(conn, queueName, callback) {
+    // default exchange consuming
+    try {
+        const channel = await conn.createChannel();
+        console.log("Channel created...");
+
+        await channel.assertQueue(queueName, { durable: true });
+        console.log("Queue created...");
+
+        channel.prefetch(1); // not realistic setting, allows for simulating fair distribution of tasks
+
+        console.log(`Waiting for messages from ${queueName}...`);
+
+        channel.consume(
+            queueName,
+            (message) => {
+                console.log("Received message...");
+                callback(message, channel);
+            },
+            { noAck: false }
+        );
+    } catch (err) {
+        console.error(`Error consuming from ${queueName} queue -> ${err}`);
+    }
 }
 
-// middleware
-app.set('view engine', 'ejs');
-app.use(express.json());
-app.use(express.urlencoded({extended:true}))
-
-async function goToProducts(email){
-    const queue = 'loginDone';
+async function sendItem(conn, routingKey, msg) {
+    // direct exchange sending
+    const exchangeName = "login";
 
     try {
-        const conn = await amqp.connect(rabbitSettings);
-        console.log('Connection created...');
-
         const channel = await conn.createConfirmChannel();
-        console.log('Channel created...');
+        console.log("Channel created...");
 
-        await channel.assertQueue(queue, {durable: true});
-        console.log('Queue created...');
+        await channel.assertExchange(exchangeName, "direct", { durable: true });
+        console.log("Exchange created...");
 
-        // send email
-        await channel.sendToQueue(queue, Buffer.from(JSON.stringify({email,})), {persistent: true},
-        (err, ok) => {
-            if (err !== null)
-                console.warn('Message nacked!');
-                    
-            else
-                console.log('Message acked');
-                console.log(`Message sent to ${queue} queue...`)
-        })
-        
-        setTimeout(() => {
-            conn.close();
-            process.exit(0);
-        },500)
-
+        channel.publish(
+            exchangeName,
+            routingKey,
+            Buffer.from(JSON.stringify(msg)),
+            { persistent: true },
+            (err, ok) => {
+                if (err !== null) console.warn("Message nacked!");
+                else {
+                    console.log("Message acked");
+                    console.log(`Message sent to ${exchangeName} exchange...`);
+                    channel.close();
+                }
+            }
+        );
     } catch (err) {
-        console.error(`Error sending email to product-service -> ${err}`);
-    } 
+        console.error(`Error sending to ${exchangeName} exchange -> ${err}`);
+    }
 }
 
-// connect to mongodb container
-mongoose.connect(`mongodb://auth-mongo:27017/users`).then(() => {
-    console.log(`Auth Service DB Connected`);
-    app.listen(5001, console.log("Auth Service running on http://localhost:5001"));
-}).catch((err) => console.error(err))
+// main
+Promise.all([rabbitmq.connect(), mongo.connect()])
+    .then(([conn]) => {
+        console.log(`Auth Service DB Connected`);
+        console.log("RabbitMQ Connected");
 
-app.route("/login")
-    .get((req, res) => {
-        res.render("login")
-    })
-    .post(async (req, res) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-        res.render("login", {fail: "Invalid Email or Password"});
-    } else {
-        if (password !== user.password) {
-            res.render("login", {fail: "Invalid Email or Password"});
-        } else {
-            //send to product queue
-            await goToProducts(user._id)
-            res.redirect('http://localhost:5000') // redirect to product-service page
-        }
-    }
-});
-
-app.route("/register")
-    .get((req, res)  => {
-        res.render("register");
-    })
-    .post(async (req, res) => {
-    const { email, password, name } = req.body;
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-        res.render("register", {fail: "User already exists"});
-    } else {
-        const newUser = new User({
-            email,
-            name,
-            password,
+        consume(conn, "login", async (message, channel) => {
+            const { email, password } = JSON.parse(message.content.toString());
+            const user = await User.findOne({ email });
+            let fail = false;
+            let id;
+            if (!user) {
+                fail = true;
+            } else {
+                if (password !== user.password) {
+                    fail = true;
+                } else {
+                    id = user._id;
+                }
+            }
+            // Respond to frontend service
+            const msg = { id, fail };
+            await sendItem(conn, email, msg);
+            channel.ack(message);
+            console.log("Dequeued message...");
         });
-        newUser.save();
-        return res.json(newUser);
-    }
-});
+        consume(conn, 'create-account', async (message, channel) => {
+            const { name, email, password } = JSON.parse(message.content.toString());
+            const userExists = await User.findOne({ email });
+            let fail;
+            if (userExists) {
+                fail = true;
+            } else {
+                const newUser = new User({
+                    email,
+                    name,
+                    password,
+                });
+                newUser.save();
+                fail = false;
+            }
+
+            // Respond to frontend service
+            const msg = { fail };
+            await sendItem(conn, email, msg);
+            channel.ack(message);
+            console.log("Dequeued message...");
+        });
+    })
+    .catch((err) => {
+        console.log(`Error -> ${err}`);
+    });

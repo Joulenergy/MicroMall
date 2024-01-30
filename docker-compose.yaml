@@ -2,10 +2,26 @@ version: '3.8'
 services:
   rabbitmq:
     image: rabbitmq:management
+    hostname: 'myrabbit'
     ports:
       - '5672:5672'
       - '15672:15672'
     container_name: rabbitmq
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+
+  frontend-service:
+    build: ./frontend-service
+    container_name: frontend-service
+    depends_on:
+      - rabbitmq
+    ports:
+      - 3000:3000
+    volumes: # for development
+      - ./frontend-service:/app
+      - /app/node_modules
+    env_file:
+      - ./frontend-service/frontend.env
 
   auth-mongo:
     image: mongo
@@ -23,11 +39,8 @@ services:
       - rabbitmq
     stdin_open: true
     tty: true
-    ports:
-      - 5001:5001
     volumes: # for development
       - ./auth-service:/app
-      - /app/node_modules
 
   cart-service:
     build: ./cart-service
@@ -67,3 +80,4 @@ services:
 volumes:
   auth-data:
   product-data:
+  rabbit-data:

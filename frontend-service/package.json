@@ -1,17 +1,18 @@
 {
-  "name": "auth-service",
+  "name": "frontend-service",
   "version": "1.0.0",
-  "description": "",
-  "main": "auth.js",
+  "description": "frontend-service",
+  "main": "frontend.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --legacy-watch auth.js"
+    "start": "nodemon --legacy-watch frontend.js"
   },
   "author": "Joulene",
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.10.3",
-    "mongoose": "^8.1.0"
+    "ejs": "^3.1.9",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
