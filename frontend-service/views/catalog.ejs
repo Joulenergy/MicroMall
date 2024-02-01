@@ -62,7 +62,7 @@
     <% items.forEach(function(item) { %>
     <div class="product-card">
       <img
-        src="data:image/<%=item.image.contentType%>; base64, <%=item.image.data.toString('base64')%>"
+        src="data:<%=item.image.contentType%>; base64, <%=Buffer.from(item.image.data.data).toString('base64')%>"
         style="width: 100%"
       />
       <h2><%= item.name %></h2>

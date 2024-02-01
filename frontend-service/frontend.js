@@ -1,23 +1,25 @@
 const express = require("express");
-// const session = require('express-session');
-const app = express();
+const session = require('express-session');
 const ejs = require("ejs");
+const fs = require('fs');
+const path = require('path');
 const rabbitmq = require("./rabbitmq");
+const {upload} = require('./upload');
+const app = express();
 
 // Configure middleware
 app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// // Create session
-// app.use(session({
-//   secret: `${process.env.secret}`,
-//   resave: false,
-//   saveUninitialized: false,
-//   cookie: { secure: true, httpOnly: true }
-// }));
-
-// // TODO: add mongodb session store?
+// Create session
+app.use(session({
+  secret: `${process.env.secret}`,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true } // secure: true is not set since run on localhost
+}));
+// TODO: add mongodb session store and add csurf?
 
 async function sendItem(queue, msg) {
     // default exchange sending
@@ -47,10 +49,9 @@ async function sendItem(queue, msg) {
     }
 }
 
-async function authResponse(routingKey, callback) {
+async function getResponse(exchangeName, routingKey, callback) {
+    // uses the services' direct exchanges to get responses
     try {
-        const exchangeName = "login";
-
         const channel = await rabbitmq.conn.createConfirmChannel();
         console.log("Channel created...");
 
@@ -60,11 +61,10 @@ async function authResponse(routingKey, callback) {
         console.log("Exchange created...");
 
         const q = await channel.assertQueue("", {
-            exclusive: true,
-            autoDelete: true,
+            exclusive: true
         });
         console.log("Queue created...");
-        console.log(`Waiting for messages from auth service...`);
+        console.log(`Waiting for messages from ${exchangeName} exchange...`);
 
         channel.bindQueue(q.queue, exchangeName, routingKey);
 
@@ -77,28 +77,53 @@ async function authResponse(routingKey, callback) {
             { noAck: false }
         );
     } catch (err) {
-        console.error(`Error receiving response from auth service -> ${err}`);
+        console.error(`Error receiving response from ${exchangeName} service -> ${err}`);
     }
 }
 
 app.get("/", (req, res) => {
     // product catalog page
-    // TODO: get products from product service
-    res.render("catalog", { items: products });
+    if (req.session.userId) { // authenticated
+        // Ask product service to send data about 
+        sendItem("catalog", {id:req.session.userId, all:true});
+        // TODO: display different categories of items based on page
+
+        // Get response from product service
+        getResponse("product", req.session.userId, (message, channel) => {
+            const msg = JSON.parse(message.content.toString());
+            console.log(msg[1].image.data);
+
+            channel.ack(message);
+            console.log("Dequeued message...");
+
+            channel.close();
+            console.log("Channel closed...");
+
+            res.render("catalog", { items: msg });
+        });
+    } else {
+        res.redirect('/login');
+    }
 });
 
 app.route("/login")
     .get((req, res) => {
-        res.render("login");
+        if (req.session.userId) {
+            res.send("Logout?")
+            //TODO: logout service
+        } else {
+            // Display login form
+            res.render("login");
+        }
     })
-    .post(async (req, res) => {
+    .post((req, res) => {
         const { email, password } = req.body;
 
-        // send to auth service
+        // Send email and password to auth service
         sendItem("login", { email, password });
 
         // Get response from auth service
-        authResponse(email, (message, channel) => {
+        getResponse("auth", email, (message, channel) => {
             const msg = JSON.parse(message.content.toString());
             console.log(msg);
 
@@ -111,6 +136,7 @@ app.route("/login")
             if (msg.fail) {
                 res.render("login", { fail: "Invalid Email or Password" });
             } else {
+                req.session.userId = msg.id; // saves userId for session
                 res.redirect("/");
             }
         });
@@ -120,14 +146,14 @@ app.route("/register")
     .get((req, res) => {
         res.render("register");
     })
-    .post(async (req, res) => {
+    .post((req, res) => {
         const { email, password, name } = req.body;
 
         // Send to queue create account
         sendItem("create-account", { email, password, name });
 
         // Get response from auth service
-        authResponse(email, (message, channel) => {
+        getResponse("auth", email, (message, channel) => {
             const msg = JSON.parse(message.content.toString());
             console.log(msg);
 
@@ -145,33 +171,73 @@ app.route("/register")
         });
     });
 
-// // Login route
-// app.post('/login', (req, res) => {
-//   // Authenticate user
-//   const user = authenticateUser(req.body.username, req.body.password);
+app.route("/createproduct")
+    .get((req, res) => {
+        if (req.session.userId) { // authenticated
+            // TODO: admin users authentication?
+            res.render("createproduct");
+        } else {
+            res.redirect('/login');
+        }
+    })
+    .post(upload.single('image'), (req, res) => {
+        const folderPath = 'productimages';
+        let { name, qty, price } = req.body;
+        name = name.replace(/\w*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+        const newProduct = {
+            name,
+            quantity: qty,
+            image: {
+                data: fs.readFileSync(path.join(__dirname + `/${folderPath}/` + req.file.filename)),
+                contentType: req.file.contentType
+            },
+            price
+        };
 
-//   if (user) {
-//     // Create session cookie
-//     req.session.userId = user.id;
+        // Send to queue create product
+        sendItem('create-product', {...newProduct, id:req.session.userId});
 
-//     // Send response
-//     res.json({ success: true });
-//   } else {
-//     // Send error response
-//     res.status(401).json({ error: 'Invalid username or password' });
-//   }
-// });
+        // Clear productimages folder
+        if (fs.existsSync(folderPath)) {
+            const files = fs.readdirSync(folderPath);
+            if (files.length > 0) {
+              for (const file of files) {
+                const filePath = path.join(folderPath, file);
+                fs.unlinkSync(filePath);
+              }
+            }
+        }
 
-// // Protected route
-// app.get('/protected', (req, res) => {
-//   if (req.session.userId) {
-//     // User is authenticated
-//     res.json({ message: 'Hello, authenticated user!' });
-//   } else {
-//     // User is not authenticated
-//     res.status(401).json({ error: 'Unauthorized' });
-//   }
-// });
+        // Get response from product-service
+        getResponse("product", req.session.userId, (message, channel) => {
+            const msg = JSON.parse(message.content.toString());
+            console.log(msg);
+
+            channel.ack(message);
+            console.log("Dequeued message...");
+
+            channel.close();
+            console.log("Channel closed...");
+
+            if (msg.fail) {
+                res.render("createproduct", { fail: "Failed to create product" });
+            } else {
+                res.render("createproduct", { msg: "New product created" });
+            }
+        });
+    })
+
+app.post("/addtocart", async (req, res) => {
+    const {name, price, qty} = req.body;
+    await sendItem('addtocart',{id, name, price, qty}); // global id
+    res.redirect('/');
+})
+
+app.post("/checkstocks", (req, res) => {
+    res.send("Checking Stocks for Your Order...");
+})
 
 app.listen(
     3000,

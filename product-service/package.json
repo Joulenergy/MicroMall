@@ -1,8 +1,8 @@
 {
-  "name": "rabbitmq",
+  "name": "product-service",
   "version": "1.0.0",
-  "description": "try rabbitmq",
-  "main": "producer.js",
+  "description": "product-service",
+  "main": "product.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon --legacy-watch product.js"
@@ -11,9 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.10.3",
-    "express": "^4.18.2",
-    "mongoose": "^8.1.1",
-    "multer": "^1.4.5-lts.1"
+    "mongoose": "^8.1.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"

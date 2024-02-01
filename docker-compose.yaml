@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   rabbitmq:
-    image: rabbitmq:management
+    build: ./rabbitmq
     hostname: 'myrabbit'
     ports:
       - '5672:5672'
@@ -15,13 +15,12 @@ services:
     container_name: frontend-service
     depends_on:
       - rabbitmq
-    ports:
-      - 3000:3000
     volumes: # for development
       - ./frontend-service:/app
-      - /app/node_modules
     env_file:
       - ./frontend-service/frontend.env
+    ports:
+      - 3000:3000
 
   auth-mongo:
     image: mongo
@@ -29,7 +28,7 @@ services:
     volumes:
       - auth-data:/data/db
     ports:
-      - 5002:27017
+      - 5001:27017
 
   auth-service:
     build: ./auth-service
@@ -42,26 +41,13 @@ services:
     volumes: # for development
       - ./auth-service:/app
 
-  cart-service:
-    build: ./cart-service
-    container_name: cart-service
-    depends_on:
-      - rabbitmq
-    stdin_open: true
-    tty: true
-    volumes: # for development
-      - ./cart-service:/app
-      - /app/node_modules
-    ports:
-      - '5004:5004'
-
   product-mongo:
     image: mongo
     container_name: product-mongo
     volumes:
       - product-data:/data/db
     ports:
-      - 5003:27017
+      - 5002:27017
 
   product-service:
     build: ./product-service
@@ -73,11 +59,29 @@ services:
     tty: true
     volumes: # for development
       - ./product-service:/app
-      - /app/node_modules
+
+  cart-mongo:
+    image: mongo
+    container_name: cart-mongo
+    volumes:
+      - cart-data:/data/db
     ports:
-      - '5000:5000'
+      - 5003:27017
+
+  cart-service:
+      build: ./cart-service
+      container_name: cart-service
+      depends_on:
+        - rabbitmq
+        - cart-mongo
+      stdin_open: true
+      tty: true
+      volumes: # for development
+        - ./cart-service:/app
+        - /app/node_modules
 
 volumes:
   auth-data:
   product-data:
+  cart-data:
   rabbit-data:

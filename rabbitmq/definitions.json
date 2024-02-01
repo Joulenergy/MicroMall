@@ -1,0 +1,93 @@
+{
+    "rabbit_version": "3.12.12",
+    "rabbitmq_version": "3.12.12",
+    "product_name": "RabbitMQ",
+    "product_version": "3.12.12",
+    "users": [
+        {
+            "name": "admin",
+            "password_hash": "iibuPUd+ce7sS6wpVStyasmXcOpLc9WpHcKHr0Ed8+6f24N0",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": ["administrator"],
+            "limits": {}
+        },
+        {
+            "name": "frontend",
+            "password_hash": "eSBhJPOd2kv+IToKm/wgLPR/KOssLs3C89ZlpPZXeT1CQdUA",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
+            "name": "cart",
+            "password_hash": "Uqdihg7Rgor7d4vgKnsuJlps48XyApfqvJs42HPEoFzc4dE1",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
+            "name": "auth",
+            "password_hash": "0AeQ5iSBKWodhDzjnDAC7Sl7bzLdczbfGxANK8WoxOe6v9Au",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
+            "name": "product",
+            "password_hash": "ynbfAlBbBCGA/oy02druIqfxmhlAi8D06lDoQbLnlLzii8PB",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        }
+    ],
+    "vhosts": [{ "name": "/" }],
+    "permissions": [
+        {
+            "user": "auth",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "product",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "cart",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "frontend",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "admin",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        }
+    ],
+    "topic_permissions": [],
+    "parameters": [],
+    "global_parameters": [
+        {
+            "name": "internal_cluster_id",
+            "value": "rabbitmq-cluster-id-gpuXqe5fr92ANEqTiie1ZA"
+        }
+    ],
+    "policies": [],
+    "queues": [],
+    "exchanges": [],
+    "bindings": []
+}

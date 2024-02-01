@@ -16,7 +16,6 @@ docker-compose up
 ```
 
 ## Technologies used
-React
 Node.js
 Express.js
 RabbitMQ

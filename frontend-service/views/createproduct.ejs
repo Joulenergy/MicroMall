@@ -21,7 +21,8 @@
         <input required id="price" name="price" type="number" step="0.01" min="0"><br>
 
         <input type="submit" value="Create New Product">
-        <p style="color:'red'"><%= locals.fail %></p>
+        <p style="color:red"><%= locals.fail %></p>
+        <p style="color:blue"><%= locals.msg %></p>
     </form>
     <a href="/">Back to catalog page</a>
 </body>

@@ -1,5 +1,5 @@
 const User = require("./User");
-const rabbitmq = require("./rabbitmq"); // to create connection only once
+const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
 
 async function consume(conn, queueName, callback) {
@@ -13,7 +13,7 @@ async function consume(conn, queueName, callback) {
 
         channel.prefetch(1); // not realistic setting, allows for simulating fair distribution of tasks
 
-        console.log(`Waiting for messages from ${queueName}...`);
+        console.log(`Waiting for messages from ${queueName} queue...`);
 
         channel.consume(
             queueName,
@@ -30,7 +30,7 @@ async function consume(conn, queueName, callback) {
 
 async function sendItem(conn, routingKey, msg) {
     // direct exchange sending
-    const exchangeName = "login";
+    const exchangeName = "auth";
 
     try {
         const channel = await conn.createConfirmChannel();
@@ -84,8 +84,10 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             channel.ack(message);
             console.log("Dequeued message...");
         });
-        consume(conn, 'create-account', async (message, channel) => {
-            const { name, email, password } = JSON.parse(message.content.toString());
+        consume(conn, "create-account", async (message, channel) => {
+            const { name, email, password } = JSON.parse(
+                message.content.toString()
+            );
             const userExists = await User.findOne({ email });
             let fail;
             if (userExists) {
@@ -108,5 +110,5 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         });
     })
     .catch((err) => {
-        console.log(`Error -> ${err}`);
+        console.log(`Auth Service Consuming Error -> ${err}`);
     });
