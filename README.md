@@ -26,4 +26,4 @@ Docker
 ## Challenges faced and features I hope to implement in the future
 
 ## About the name
-MicroMall's name is inspired by how it is created, using microservices and containerization. 'Mall' explains the function of the application - to sell products - and contradicts 'Micro' to paradoxically 'express' (get the pun?) the idea of how the microservices architecture is similar to a mall with how its many independent services work together.
+MicroMall's name is inspired by how it is created, using microservices and containerization. 'Mall' explains the function of the application - to sell products - and contradicts 'Micro' to express the idea of how the microservices architecture is similar to a mall with how its many independent services work together.

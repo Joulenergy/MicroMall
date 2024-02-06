@@ -28,33 +28,35 @@ async function consume(conn, queueName, callback) {
     }
 }
 
-async function sendItem(conn, routingKey, msg) {
-    // direct exchange sending
-    const exchangeName = "auth";
-
+async function sendItem(conn, queueName, msg) {
+    // default exchange sending
     try {
         const channel = await conn.createConfirmChannel();
         console.log("Channel created...");
 
-        await channel.assertExchange(exchangeName, "direct", { durable: true });
-        console.log("Exchange created...");
+        await channel.assertQueue(queueName, {
+            durable: true,
+            arguments: { "x-expires": 1800000 },
+        });
+        // deletes queue after 30 minutes if unused
+        console.log("Queue created...");
 
-        channel.publish(
-            exchangeName,
-            routingKey,
+        await channel.sendToQueue(
+            queueName,
             Buffer.from(JSON.stringify(msg)),
             { persistent: true },
             (err, ok) => {
                 if (err !== null) console.warn("Message nacked!");
                 else {
                     console.log("Message acked");
-                    console.log(`Message sent to ${exchangeName} exchange...`);
+                    console.log(`Message sent to ${queueName} queue...`);
                     channel.close();
+                    console.log("Channel closed...");
                 }
             }
         );
     } catch (err) {
-        console.error(`Error sending to ${exchangeName} exchange -> ${err}`);
+        console.error(`Error sending to ${queueName} queue -> ${err}`);
     }
 }
 
@@ -65,7 +67,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "login", async (message, channel) => {
-            const { email, password } = JSON.parse(message.content.toString());
+            const { sessionid, email, password } = JSON.parse(
+                message.content.toString()
+            );
             const user = await User.findOne({ email });
             let fail = false;
             let id;
@@ -80,12 +84,12 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             }
             // Respond to frontend service
             const msg = { id, fail };
-            await sendItem(conn, email, msg);
+            await sendItem(conn, sessionid, msg);
             channel.ack(message);
             console.log("Dequeued message...");
         });
         consume(conn, "create-account", async (message, channel) => {
-            const { name, email, password } = JSON.parse(
+            const { sessionid, name, email, password } = JSON.parse(
                 message.content.toString()
             );
             const userExists = await User.findOne({ email });
@@ -104,7 +108,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
             // Respond to frontend service
             const msg = { fail };
-            await sendItem(conn, email, msg);
+            await sendItem(conn, sessionid, msg);
             channel.ack(message);
             console.log("Dequeued message...");
         });

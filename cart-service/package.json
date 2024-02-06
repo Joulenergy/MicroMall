@@ -1,8 +1,8 @@
 {
-  "name": "rabbitmq",
+  "name": "cart-service",
   "version": "1.0.0",
-  "description": "try rabbitmq",
-  "main": "producer.js",
+  "description": "cart-service",
+  "main": "cart.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon --legacy-watch cart.js"
@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.10.3",
-    "express": "^4.18.2"
+    "mongoose": "^8.1.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"

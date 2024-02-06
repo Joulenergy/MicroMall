@@ -1,5 +1,5 @@
-const rabbitmq = require('./rabbitmq');
-const mongo = require('./mongo');
+const rabbitmq = require("./rabbitmq");
+const mongo = require("./mongo");
 const Products = require("./products");
 
 async function consume(conn, queueName, callback) {
@@ -28,33 +28,35 @@ async function consume(conn, queueName, callback) {
     }
 }
 
-async function sendItem(conn, routingKey, msg) {
-    // direct exchange sending
-    const exchangeName = "product";
-
+async function sendItem(conn, queueName, msg) {
+    // default exchange sending
     try {
         const channel = await conn.createConfirmChannel();
         console.log("Channel created...");
 
-        await channel.assertExchange(exchangeName, "direct", { durable: true });
-        console.log("Exchange created...");
+        await channel.assertQueue(queueName, {
+            durable: true,
+            arguments: { "x-expires": 1800000 },
+        });
+        // deletes queue after 30 minutes if unused
+        console.log("Queue created...");
 
-        channel.publish(
-            exchangeName,
-            routingKey,
+        await channel.sendToQueue(
+            queueName,
             Buffer.from(JSON.stringify(msg)),
             { persistent: true },
             (err, ok) => {
                 if (err !== null) console.warn("Message nacked!");
                 else {
                     console.log("Message acked");
-                    console.log(`Message sent to ${exchangeName} exchange...`);
+                    console.log(`Message sent to ${queueName} queue...`);
                     channel.close();
+                    console.log("Channel closed...");
                 }
             }
         );
     } catch (err) {
-        console.error(`Error sending to ${exchangeName} exchange -> ${err}`);
+        console.error(`Error sending to ${queueName} queue -> ${err}`);
     }
 }
 
@@ -65,23 +67,24 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "catalog", async (message, channel) => {
-            const { id, all, category } = JSON.parse(message.content.toString());
-            // category if need to use in future 
+            const { sessionid, all, category } = JSON.parse(
+                message.content.toString()
+            );
+            // category if need to use in future
 
             let products;
             if (all) {
-                products = await Products.find({})
+                products = await Products.find({});
             } else {
                 //TODO: in the future if render diff pages with diff category products
             }
-            console.log('here')
             // Respond to frontend service
-            await sendItem(conn, id, products);
+            await sendItem(conn, sessionid, products);
             channel.ack(message);
             console.log("Dequeued message...");
         });
         consume(conn, "create-product", async (message, channel) => {
-            const { id, name, quantity, image, price } = JSON.parse(
+            const { sessionid, name, quantity, image, price } = JSON.parse(
                 message.content.toString()
             );
             const productExists = await Products.findOne({ name });
@@ -91,9 +94,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             } else {
                 const newProduct = new Products({
                     name,
-                    quantity,
+                    quantity:parseInt(quantity),
                     image,
-                    price
+                    price,
                 });
                 newProduct.save();
                 fail = false;
@@ -101,7 +104,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
             // Respond to frontend service
             const msg = { fail };
-            await sendItem(conn, id, msg);
+            await sendItem(conn, sessionid, msg);
             channel.ack(message);
             console.log("Dequeued message...");
         });
@@ -109,4 +112,3 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
     .catch((err) => {
         console.log(`Product Service Consuming Error -> ${err}`);
     });
-

@@ -2,78 +2,84 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>MicroMall Catalog Page</title>
-    <style>
-      .product-card {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-evenly;
-        align-items: center;
-        width: 100%;
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-
-      .product-card img {
-        width: 100%;
-        max-width: 300px;
-        max-height: 300px;
-        object-fit: cover;
-        height: auto;
-        margin-bottom: 20px;
-      }
-
-      .product-card h2 {
-        font-size: 24px;
-        margin-bottom: 20px;
-      }
-
-      .product-card p {
-        font-size: 16px;
-        margin-bottom: 20px;
-      }
-
-      .product-card button {
-        background-color: #000;
-        color: #fff;
-        border: none;
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-      }
-
-      .product-card input {
-        padding: 10px 10px;
-        margin-right: 10px;
-      }
-
-      .product-card button:hover {
-        background-color: #fff;
-        color: #000;
-      }
-    </style>
+    <link rel="stylesheet" type="text/css" href="catalog.css">
   </head>
   <body>
-    <h2>Products</h2>
-    <a href="http://localhost:5004">Go To Cart</a>
-    <% items.forEach(function(item) { %>
-    <div class="product-card">
-      <img
-        src="data:<%=item.image.contentType%>; base64, <%=Buffer.from(item.image.data.data).toString('base64')%>"
-        style="width: 100%"
-      />
-      <h2><%= item.name %></h2>
-      <p class="price">$ <%= item.price %></p>
-      <form action="/addtocart" method="post">
-        <input type="number" name="qty" min="1" max=<%= item.quantity %>>
-        <input type="hidden" name="name" value=<%= item.name %>>
-        <input type="hidden" name="price" value=<%= item.price %>>
-        <button type="submit">Add to Cart</button>
-      </form>
+    <div class="container">
+      <header>
+          <div class="title">Products</div>
+          <div class="icon-cart">
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 20">
+                  <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 0h8m-8 0-1-4m9 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-9-4h10l2-7H3m2 7L3 4m0 0-.792-3H1"/>
+              </svg>
+              <% if (JSON.stringify(cartitems) == '{}') {%>
+                <span>0</span>
+              <% } else { %>
+                <% let cartcount = 0 %>
+                <% cartitems.quantities.forEach((qty) => { %>
+                  <% cartcount += qty %>
+                <% }) %>
+                <span id="cartcount"><%= cartcount %></span>
+              <% } %>
+          </div>
+      </header>
+      <div class="listProduct">
+        <% productitems.forEach((item) => { %>
+            <div class="product-card">
+              <img
+                src="data:<%=item.image.contentType%>; base64, <%=Buffer.from(item.image.data.data).toString('base64')%>"
+              />
+              <h2><%= item.name %></h2>
+              <p class="price">$<%= item.price %></p>
+              <form action="/addtocart" method="post">
+                <input type="hidden" name="maxqty" value=<%= item.quantity %>>
+                <input id="quantityInput" required type="number" name="qty" min="1" max=<%= item.quantity %>>
+                <input type="hidden" name="name" value="<%= item.name %>">
+                <input type="hidden" name="price" value=<%= item.price %>>
+                <button type="submit">Add to Cart</button>
+              </form>
+            </div>
+            <% }); %>
+      </div>
     </div>
-    <% }); %>
+    <div class="cartTab">
+        <h1>Shopping Cart</h1>
+        <% let totalPrice = 0 %>
+        <div class="listCart">
+          <% if (JSON.stringify(cartitems) == '{}' || cartitems.products.length == 0) {%>
+            <p class="emptycart">Cart is Empty</p>
+          <% } else { %>
+            <% for (let i=0; i<cartitems.products.length; i++) { %>
+              <div class="item">
+                <% const product = productitems.find((product) => product.name == cartitems.products[i]) %>
+                <div class="image">
+                  <img
+                  src="data:<%=product.image.contentType%>; base64, <%=Buffer.from(product.image.data.data).toString('base64')%>"
+                  />
+                </div>
+                <div class="name"><%= cartitems.products[i] %></div>
+                <% const itemTotalPrice = (Number(cartitems.prices[i]) * cartitems.quantities[i]).toFixed(2) %>
+                <div class="totalPrice">$<%= itemTotalPrice %></div>
+                <% totalPrice += Number(itemTotalPrice) %>
+                <div class="quantity">
+                    <span class="minus"><</span>
+                    <span class="current-qty"><%= cartitems.quantities[i] %></span>
+                    <span class="plus">></span>
+                </div>
+              </div>
+              <% }; %>
+          <% }; %>
+        </div>
+        <% if (JSON.stringify(cartitems) !== '{}') {%>
+          <p class="checkoutPrice">Total Price: $<%= totalPrice.toFixed(2) %></p>
+        <% } %>
+        <div class="btn">
+            <button class="close">CLOSE</button>
+            <button class="checkOut">Check Out</button>
+        </div>
+    </div>
+    <script src="catalog.js"></script>
   </body>
 </html>
