@@ -9,7 +9,7 @@ const rabbitSettings = {
     authMechanism: ["PLAIN", "AMQPLAIN", "EXTERNAL"],
 };
 
-async function connect(){
+async function connect() {
     return await amqp.connect(rabbitSettings)         
 }
 

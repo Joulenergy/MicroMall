@@ -1,5 +1,14 @@
-const rabbitmq = require("./rabbitmq");
+"use strict";
 
+const rabbitmq = require("./rabbitmq");
+const express = require("express");
+
+/**
+ * Sends item to queue in rabbitmq with default exchange
+ * @param {express.Request} req
+ * @param {string} queue
+ * @param {Object} msg
+ */
 async function sendItem(req, queue, msg) {
     // default exchange sending
     try {
@@ -9,7 +18,7 @@ async function sendItem(req, queue, msg) {
         await channel.assertQueue(queue, { durable: true });
         console.log("Queue created...");
 
-        await channel.sendToQueue(
+        channel.sendToQueue(
             queue,
             Buffer.from(JSON.stringify({ ...msg, sessionid: req.sessionID })),
             { persistent: true },
@@ -28,34 +37,13 @@ async function sendItem(req, queue, msg) {
     }
 }
 
-async function getResponse(queueName, callback) {
-    // uses the sessionid queue to get responses
-    try {
-        const channel = await rabbitmq.conn.createConfirmChannel();
-        console.log("Channel created...");
-
-        await channel.assertQueue(queueName, {
-            durable: true,
-            arguments: { "x-expires": 1800000 },
-        });
-        // deletes queue after 30 minutes if unused
-        console.log("Queue created...");
-        console.log(`Waiting for messages from ${queueName} queue...`);
-
-        channel.consume(
-            queueName,
-            (message) => {
-                console.log(`Received message...`);
-                callback(message, channel);
-            },
-            { noAck: false }
-        );
-    } catch (err) {
-        console.error(`Error receiving response -> ${err}`);
-    }
-}
-
-function getResponsePromise(queueName) {
+/**
+ * Gets response to frontend using sessionid of user using promises
+ * @param {string} queueName
+ * @returns {Promise<Object>}
+ */
+function getResponse(queueName) {
+    // uses sessionid queue to get responses to frontend
     return new Promise(async (res, rej) => {
         try {
             const channel = await rabbitmq.conn.createConfirmChannel();
@@ -74,19 +62,24 @@ function getResponsePromise(queueName) {
                 (message) => {
                     console.log(`Received message...`);
                     try {
-                        const data = JSON.parse(message.content.toString())
-                        res(data)
+                        const msg = JSON.parse(message.content.toString());
+                        console.log({msg})
+                        res(msg);
+
                     } catch (err) {
-                        rej(err)
+                        rej(err);
+
                     } finally {
                         channel.ack(message);
-                        channel.close()
+                        console.log("Dequeued message...");
+                        channel.close();
+                        console.log("Channel closed...");
                     }
                 },
                 { noAck: false }
             );
         } catch (err) {
-            rej(err)
+            rej(err);
         }
     });
 }
@@ -94,5 +87,4 @@ function getResponsePromise(queueName) {
 module.exports = {
     sendItem,
     getResponse,
-    getResponsePromise,
 };

@@ -1,3 +1,5 @@
+"use strict";
+
 let body = document.querySelector("body");
 let iconCart = document.querySelector(".icon-cart");
 let closeCart = document.querySelector(".close");
@@ -5,12 +7,18 @@ let listCartHTML = document.querySelector(".listCart");
 let items = document.querySelectorAll(".item");
 
 function updateQuantity(item, change) {
-    // Get the value of the 'max' attribute
-    const quantityInput = document.getElementById("quantityInput");
-    const maxqty = quantityInput.getAttribute("max");
-
     // get name of product
     const name = item.querySelector(".name").textContent;
+
+    // Get the value of the 'max' attribute of the product
+    let maxqty;
+    const products = document.querySelectorAll(".product-card");
+    products.forEach((product) => {
+        if (product.querySelector(".product-name").textContent == name) {
+            const quantityInput = product.querySelector(".quantityInput");
+            maxqty = quantityInput.getAttribute("max");
+        }
+    });
 
     // Update quantity on page
     const currentQuantitySpan = item.querySelector(".current-qty");
@@ -19,14 +27,13 @@ function updateQuantity(item, change) {
 
     if (newQuantity == 0) {
         item.remove();
-        updatedItems = document.querySelectorAll(".item");
+        const updatedItems = document.querySelectorAll(".item");
         if (updatedItems.length == 0) {
             const emptyCartMessage = document.createElement("p");
             emptyCartMessage.textContent = 'Cart is Empty';
             emptyCartMessage.classList.add('emptycart');
             listCartHTML.appendChild(emptyCartMessage);
         }
-
     } else {
         currentQuantitySpan.textContent = newQuantity;
     }
@@ -34,7 +41,7 @@ function updateQuantity(item, change) {
     // Update total cart items
     const cartCountSpan = document.getElementById("cartcount");
     const cartCount = parseInt(cartCountSpan.textContent);
-    cartCountSpan.textContent = cartCount + change;
+    cartCountSpan.textContent = cartCount - currentQuantity + newQuantity;
 
     updatePrice(item, currentQuantity, newQuantity);
 

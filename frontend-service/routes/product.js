@@ -16,7 +16,7 @@ router
             res.redirect("/login");
         }
     })
-    .post(upload.single("image"), (req, res) => {
+    .post(upload.single("image"), async (req, res) => {
         const folderPath = "../productimages";
         let { name, qty, price } = req.body;
         name = name.replace(/\w*/g, function (txt) {
@@ -49,24 +49,19 @@ router
         }
 
         // Get response from product-service
-        getResponse(req.sessionID, (message, channel) => {
-            const msg = JSON.parse(message.content.toString());
-            console.log({msg});
-
-            channel.ack(message);
-            console.log("Dequeued message...");
-
-            channel.close();
-            console.log("Channel closed...");
-
-            if (msg.fail) {
+        try {
+            const { fail } = await getResponse(req.sessionID);
+            console.log({ fail });
+            if (fail) {
                 res.render("createproduct", {
                     fail: "Failed to create product",
                 });
             } else {
                 res.render("createproduct", { msg: "New product created" });
             }
-        });
+        } catch (err) {
+            console.error(`Error creating product -> ${err}`);
+        }
     });
 
 module.exports = router;

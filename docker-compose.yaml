@@ -78,10 +78,18 @@ services:
       tty: true
       volumes: # for development
         - ./cart-service:/app
-        - /app/node_modules
+
+  order-mongo:
+    image: mongo
+    container_name: order-mongo
+    volumes:
+      - order-data:/data/db
+    ports:
+      - 5004:27017
 
 volumes:
   auth-data:
   product-data:
   cart-data:
   rabbit-data:
+  order-data:

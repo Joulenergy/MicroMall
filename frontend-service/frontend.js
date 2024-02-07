@@ -1,7 +1,9 @@
+"use strict";
+
 const express = require("express");
 const session = require("express-session");
 const ejs = require("ejs");
-const { sendItem, getResponse, getResponsePromise } = require("./useRabbit");
+const { sendItem, getResponse } = require("./useRabbit");
 const app = express();
 
 // Configure middleware
@@ -25,23 +27,26 @@ app.get("/", async (req, res) => {
     // product catalog page
     if (req.session.userId) {
         // authenticated
+        try {
+            // Ask product service to send data
+            sendItem(req, "catalog", { all: true });
+            // possible TODO: display different categories of items based on page
 
-        // Ask product service to send data
-        sendItem(req, "catalog", { all: true });
-        // possible TODO: display different categories of items based on page
+            // Get response from product service
+            const productitems = await getResponse(req.sessionID);
+            console.log({ productitems });
 
-        // Get response from product service
-        const productitems = await getResponsePromise(req.sessionID);
-        console.log({ productitems })
-        
-        // ask cart service to send data
-        sendItem(req, "get-cart", { id: req.session.userId });
+            // ask cart service to send data
+            sendItem(req, "get-cart", { id: req.session.userId });
 
-        const cartitems = await getResponsePromise(req.sessionID);
-        console.log({ cartitems })
+            const cartitems = await getResponse(req.sessionID);
+            console.log({ cartitems });
 
-        res.render("catalog", { productitems, cartitems });
-        
+            res.render("catalog", { productitems, cartitems });
+
+        } catch (err) {
+            console.log(`Error loading catalog page -> ${err}`);
+        }
     } else {
         res.redirect("/login");
     }
@@ -55,27 +60,9 @@ app.use("/", productRouter);
 const authRouter = require("./routes/auth");
 app.use("/", authRouter);
 
-app.post("/addtocart", async (req, res) => {
-    const { name, price, qty, maxqty } = req.body;
-    await sendItem(req, "change-cart", {
-        id: req.session.userId,
-        name,
-        price,
-        qty,
-        maxqty,
-    });
-    res.redirect("/");
-});
-
-app.post("/changecart", (req, res) => {
-    const { name, qty, maxqty } = req.body;
-    sendItem(req, "change-cart", {
-        id: req.session.userId,
-        name,
-        qty,
-        maxqty,
-    });
-})
+// Cart Service router
+const cartRouter = require("./routes/cart");
+app.use("/", cartRouter);
 
 app.post("/checkstocks", (req, res) => {
     res.send("Checking Stocks for Your Order...");

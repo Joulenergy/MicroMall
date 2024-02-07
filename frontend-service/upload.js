@@ -1,3 +1,5 @@
+"use strict";
+
 // for storing image into mongodb
 const fs = require('fs')
 const multer = require('multer');
