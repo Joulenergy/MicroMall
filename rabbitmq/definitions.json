@@ -19,6 +19,13 @@
             "limits": {}
         },
         {
+            "name": "notif",
+            "password_hash": "7/M5NRImJqHpFh/pOKgA3VAohKzx+weda9AqSVMkYp5Z+l82",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
             "name": "cart",
             "password_hash": "Uqdihg7Rgor7d4vgKnsuJlps48XyApfqvJs42HPEoFzc4dE1",
             "hashing_algorithm": "rabbit_password_hashing_sha256",
@@ -26,8 +33,22 @@
             "limits": {}
         },
         {
+            "name": "order",
+            "password_hash": "SM4etkzeUMuz5eoeXmXJD8/8OmuBZqZNlH8njFLgsHxputAJ",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
             "name": "auth",
             "password_hash": "0AeQ5iSBKWodhDzjnDAC7Sl7bzLdczbfGxANK8WoxOe6v9Au",
+            "hashing_algorithm": "rabbit_password_hashing_sha256",
+            "tags": [],
+            "limits": {}
+        },
+        {
+            "name": "payment",
+            "password_hash": "UpY2MaGWr40qnon4oW58vrpTfZ7TQ9VWapAmGlqegEkyiRAi",
             "hashing_algorithm": "rabbit_password_hashing_sha256",
             "tags": [],
             "limits": {}
@@ -65,6 +86,27 @@
         },
         {
             "user": "frontend",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "notif",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "payment",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        },
+        {
+            "user": "order",
             "vhost": "/",
             "configure": ".*",
             "write": ".*",

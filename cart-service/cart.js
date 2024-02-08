@@ -17,56 +17,76 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             );
             qty = parseInt(qty);
             maxqty = parseInt(maxqty);
+            
+            let cart;
+            try {
+                cart = await Carts.findOne({ _id: id });
+            } catch (err) {
+                console.error(err);
+            }
+            
+            console.log({cart});
 
-            const cart = await Carts.findOne({ id });
             if (cart) {
                 // Add product to current cart
-                const index = cart.products.indexOf(name);
+                let itemIndex = -1;
 
                 // Check if product is already in cart
-                if (index == -1) {
+                cart.items.forEach((item, index) => {
+                    if (item.name == name) {
+                        itemIndex = index;
+                    }
+                });
+
+                if (itemIndex == -1) {
                     // Product is not in cart
-                    cart.products.push(name);
-                    cart.quantities.push(qty);
-                    cart.prices.push(price);
+                    cart.items.push({ name, quantity: qty, price });
+                    cart.save();
+
                 } else {
                     // Product in cart already
-                    const newqty = cart.quantities[index] + qty;
+                    const item = cart.items[itemIndex];
+                    const newqty = item.quantity + qty;
                     if (0 < newqty && newqty <= maxqty) {
                         // Ensure user does not add to cart more than stock amount, maxqty
-                        cart.quantities[index] += qty;
-                    } else if (cart.quantities[index] + qty == 0) {
+                        item.quantity += qty;
+                        cart.save();
+
+                    } else if (newqty == 0) {
                         // Remove item
-                        cart.quantities.splice(index, 1);
-                        cart.products.splice(index, 1);
-                        cart.prices.splice(index, 1);
+                        cart.items.splice(itemIndex, 1);
+                        cart.save();
+
+                        if (cart.items.length == 0) {
+                            // delete empty cart
+                            await Carts.deleteOne({ _id: id });
+                        }
                     } else {
-                        cart.quantities[index] = maxqty;
+                        // User is trying to add item but not enough stock
+                        item.quantity = maxqty;
+                        cart.save();
                     }
                 }
-
-                cart.save();
+                
             } else {
                 // Create new cart
                 const newCart = new Carts({
-                    id,
-                    products: [name],
-                    quantities: [qty],
-                    prices: [price],
+                    _id: id,
+                    items: [{ name, quantity: qty, price }],
                 });
 
-                newCart.save();
+                await newCart.save();
             }
 
-            // no need respond to frontend? (for now) - but need to consider how to at frontend prevent user
-            // rather than use the maxqty here or give some form of response that cannot add more to cart
+            // no need respond to frontend? (for now)
+            // possible TODO: give some form of response that cannot add more to cart?
 
             channel.ack(message);
             console.log("Dequeued message...");
         });
         consume(conn, "get-cart", async (message, channel) => {
             const { sessionid, id } = JSON.parse(message.content.toString());
-            let cart = await Carts.findOne({ id });
+            let cart = await Carts.findOne({ _id: id });
 
             // Respond to frontend service
             if (cart === null) {

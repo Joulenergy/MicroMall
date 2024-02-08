@@ -18,8 +18,8 @@
                 <span>0</span>
               <% } else { %>
                 <% let cartcount = 0 %>
-                <% cartitems.quantities.forEach((qty) => { %>
-                  <% cartcount += qty %>
+                <% cartitems.forEach((item) => { %>
+                  <% cartcount += item.quantity %>
                 <% }) %>
                 <span id="cartcount"><%= cartcount %></span>
               <% } %>
@@ -48,24 +48,24 @@
         <h1>Shopping Cart</h1>
         <% let totalPrice = 0 %>
         <div class="listCart">
-          <% if (JSON.stringify(cartitems) == '{}' || cartitems.products.length == 0) {%>
+          <% if (JSON.stringify(cartitems) == '{}') {%>
             <p class="emptycart">Cart is Empty</p>
           <% } else { %>
-            <% for (let i=0; i<cartitems.products.length; i++) { %>
+            <% for (let i=0; i<cartitems.length; i++) { %>
               <div class="item">
-                <% const product = productitems.find((product) => product.name == cartitems.products[i]) %>
+                <% const product = productitems.find((product) => product.name == cartitems[i].name) %>
                 <div class="image">
                   <img
                   src="data:<%=product.image.contentType%>; base64, <%=Buffer.from(product.image.data.data).toString('base64')%>"
                   />
                 </div>
-                <div class="name"><%= cartitems.products[i] %></div>
-                <% const itemTotalPrice = (Number(cartitems.prices[i]) * cartitems.quantities[i]).toFixed(2) %>
+                <div class="name"><%= cartitems[i].name %></div>
+                <% const itemTotalPrice = (Number(cartitems[i].price) * cartitems[i].quantity).toFixed(2) %>
                 <div class="totalPrice">$<%= itemTotalPrice %></div>
                 <% totalPrice += Number(itemTotalPrice) %>
                 <div class="quantity">
                     <span class="minus"><</span>
-                    <span class="current-qty"><%= cartitems.quantities[i] %></span>
+                    <span class="current-qty"><%= cartitems[i].quantity %></span>
                     <span class="plus">></span>
                 </div>
               </div>
@@ -74,6 +74,8 @@
         </div>
         <% if (JSON.stringify(cartitems) !== '{}') {%>
           <p class="checkoutPrice">Total Price: $<%= totalPrice.toFixed(2) %></p>
+        <% } else { %>
+          <p class="checkoutPrice">Total Price: $0.00</p>
         <% } %>
         <div class="btn">
             <button class="close">CLOSE</button>

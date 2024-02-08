@@ -39,11 +39,14 @@ app.get("/", async (req, res) => {
             // ask cart service to send data
             sendItem(req, "get-cart", { id: req.session.userId });
 
-            const cartitems = await getResponse(req.sessionID);
-            console.log({ cartitems });
+            const cart = await getResponse(req.sessionID);
+            console.log({ cart });
 
-            res.render("catalog", { productitems, cartitems });
-
+            if (JSON.stringify(cart) == "{}") {
+                res.render("catalog", { productitems, cartitems: {} });
+            } else {
+                res.render("catalog", { productitems, cartitems: cart.items });
+            }
         } catch (err) {
             console.log(`Error loading catalog page -> ${err}`);
         }

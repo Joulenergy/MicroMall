@@ -15,13 +15,13 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             const { sessionid, all, category } = JSON.parse(
                 message.content.toString()
             );
-            // possible TODO: category if need to use in future
 
             let products;
             if (all) {
                 products = await Products.find({});
             } else {
-                //possible TODO: in the future if render diff pages with diff category products
+                // possible TODO: category if need to use in the future,
+                // if render diff pages with diff category products
             }
             // Respond to frontend service
             await sendItem(conn, sessionid, products);

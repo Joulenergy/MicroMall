@@ -28,7 +28,7 @@ services:
     volumes:
       - auth-data:/data/db
     ports:
-      - 5001:27017
+      - 5001:27017 # so that can access on mongodb compass
 
   auth-service:
     build: ./auth-service
@@ -36,8 +36,6 @@ services:
     depends_on:
       - auth-mongo
       - rabbitmq
-    stdin_open: true
-    tty: true
     volumes: # for development
       - ./auth-service:/app
 
@@ -55,8 +53,6 @@ services:
     depends_on:
       - rabbitmq
       - product-mongo
-    stdin_open: true
-    tty: true
     volumes: # for development
       - ./product-service:/app
 
@@ -74,8 +70,6 @@ services:
       depends_on:
         - rabbitmq
         - cart-mongo
-      stdin_open: true
-      tty: true
       volumes: # for development
         - ./cart-service:/app
 
@@ -86,6 +80,15 @@ services:
       - order-data:/data/db
     ports:
       - 5004:27017
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    depends_on:
+      - rabbitmq
+      - order-mongo
+    volumes:
+      - ./order-service:/app
 
 volumes:
   auth-data:
