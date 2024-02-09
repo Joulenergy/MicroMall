@@ -28,6 +28,8 @@ app.get("/", async (req, res) => {
     if (req.session.userId) {
         // authenticated
         try {
+            const showcart = req.session.showcart === true;
+
             // Ask product service to send data
             sendItem(req, "catalog", { all: true });
             // possible TODO: display different categories of items based on page
@@ -43,9 +45,9 @@ app.get("/", async (req, res) => {
             console.log({ cart });
 
             if (JSON.stringify(cart) == "{}") {
-                res.render("catalog", { productitems, cartitems: {} });
+                res.render("catalog", { showcart, productitems, cartitems: {} });
             } else {
-                res.render("catalog", { productitems, cartitems: cart.items });
+                res.render("catalog", { showcart, productitems, cartitems: cart.items });
             }
         } catch (err) {
             console.log(`Error loading catalog page -> ${err}`);

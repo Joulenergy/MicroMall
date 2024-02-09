@@ -11,6 +11,7 @@ router.post("/addtocart", async (req, res) => {
         qty,
         maxqty,
     });
+    req.session.showcart = true;
     res.redirect("/");
 });
 
@@ -22,6 +23,12 @@ router.post("/changecart", (req, res) => {
         qty,
         maxqty,
     });
+    res.end();
+});
+
+router.post("/cartstate", (req, res) => {
+    // toggles cart open state
+    req.session.showcart = !req.session.showcart;
     res.end();
 });
 

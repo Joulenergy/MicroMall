@@ -22,6 +22,7 @@ router
         name = name.replace(/\w*/g, function (txt) {
             return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
         });
+        price = parseFloat(price).toFixed(2);
         const newProduct = {
             name,
             quantity: qty,

@@ -30,8 +30,8 @@ function updateQuantity(item, change) {
         const updatedItems = document.querySelectorAll(".item");
         if (updatedItems.length == 0) {
             const emptyCartMessage = document.createElement("p");
-            emptyCartMessage.textContent = 'Cart is Empty';
-            emptyCartMessage.classList.add('emptycart');
+            emptyCartMessage.textContent = "Cart is Empty";
+            emptyCartMessage.classList.add("emptycart");
             listCartHTML.appendChild(emptyCartMessage);
         }
     } else {
@@ -73,15 +73,22 @@ function updatePrice(item, currentQuantity, newQuantity) {
 
     // Set prices
     totalPriceDiv.textContent = "$ " + newTotalPrice.toFixed(2);
-    checkoutPriceParagraph.textContent = "Total Price: $" + newCheckoutPrice.toFixed(2);
+    checkoutPriceParagraph.textContent =
+        "Total Price: $" + newCheckoutPrice.toFixed(2);
 }
 
 // Close and open cart tab
 iconCart.addEventListener("click", () => {
     body.classList.toggle("showCart");
+    fetch("/cartstate", {
+        method: "POST",
+    });
 });
 closeCart.addEventListener("click", () => {
     body.classList.toggle("showCart");
+    fetch("/cartstate", {
+        method: "POST",
+    });
 });
 
 // Minus and plus buttons in cart
