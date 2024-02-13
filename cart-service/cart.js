@@ -78,8 +78,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 await newCart.save();
             }
 
-            // no need respond to frontend? (for now)
-            // possible TODO: give some form of response that cannot add more to cart?
+            // TODO: give some form of response that cannot add more to cart?
 
             channel.ack(message);
             console.log("Dequeued message...");
