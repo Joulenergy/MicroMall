@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendItem } = require("../useRabbit");
+const { sendItem, getResponse } = require("../useRabbit");
 const router = express.Router();
 
 router.post("/addtocart", async (req, res) => {
@@ -11,11 +11,11 @@ router.post("/addtocart", async (req, res) => {
         qty,
         maxqty,
     });
-    req.session.showcart = true;
+    await getResponse(req.sessionID);
     res.redirect("/");
 });
 
-router.post("/changecart", (req, res) => {
+router.post("/changecart", async (req, res) => {
     const { name, qty, maxqty } = req.body;
     sendItem(req, "change-cart", {
         id: req.session.userId,
@@ -23,7 +23,8 @@ router.post("/changecart", (req, res) => {
         qty,
         maxqty,
     });
-    res.end();
+    await getResponse(req.sessionID);
+    res.redirect("/");
 });
 
 router.post("/cartstate", (req, res) => {

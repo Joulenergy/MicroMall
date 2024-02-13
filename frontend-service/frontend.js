@@ -33,6 +33,7 @@ app.get("/", async (req, res) => {
             // Ask product service to send data
             sendItem(req, "catalog", { all: true });
             // possible TODO: display different categories of items based on page
+            // but ejs for cart will need to change
 
             // Get response from product service
             const productitems = await getResponse(req.sessionID);

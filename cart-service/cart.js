@@ -12,20 +12,14 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "change-cart", async (message, channel) => {
-            let { id, name, price, qty, maxqty } = JSON.parse(
+            let { sessionid, id, name, price, qty, maxqty } = JSON.parse(
                 message.content.toString()
             );
             qty = parseInt(qty);
             maxqty = parseInt(maxqty);
             
             let cart;
-            try {
-                cart = await Carts.findOne({ _id: id });
-            } catch (err) {
-                console.error(err);
-            }
-            
-            console.log({cart});
+            cart = await Carts.findOne({ _id: id });
 
             if (cart) {
                 // Add product to current cart
@@ -42,7 +36,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     // Product is not in cart
                     cart.items.push({ name, quantity: qty, price });
                     cart.save();
-
+                    
                 } else {
                     // Product in cart already
                     const item = cart.items[itemIndex];
@@ -51,7 +45,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         // Ensure user does not add to cart more than stock amount, maxqty
                         item.quantity += qty;
                         cart.save();
-
+                        
                     } else if (newqty == 0) {
                         // Remove item
                         cart.items.splice(itemIndex, 1);
@@ -67,18 +61,22 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         cart.save();
                     }
                 }
-                
             } else {
-                // Create new cart
-                const newCart = new Carts({
-                    _id: id,
-                    items: [{ name, quantity: qty, price }],
-                });
+                if (!id) {
+                    channel.nack(message, false, false);
+                } else {
+                    // Create new cart
+                    const newCart = new Carts({
+                        _id: id,
+                        items: [{ name, quantity: qty, price }],
+                    });
 
-                await newCart.save();
+                    await newCart.save();
+                }
             }
 
-            // TODO: give some form of response that cannot add more to cart?
+            // Respond to frontend service
+            await sendItem(conn, sessionid, "success");
 
             channel.ack(message);
             console.log("Dequeued message...");

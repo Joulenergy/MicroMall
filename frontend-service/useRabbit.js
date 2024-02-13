@@ -46,42 +46,42 @@ function getResponse(queueName) {
     // uses sessionid queue to get responses to frontend
     return new Promise(async (res, rej) => {
         try {
-            const channel = await rabbitmq.conn.createConfirmChannel();
-            console.log("Channel created...");
-
-            await channel.assertQueue(queueName, {
-                durable: true,
-                arguments: { "x-expires": 1800000 },
+            await rabbitmq.responseChannel.assertQueue(queueName, {
+            durable: true,
+            arguments: { "x-expires": 1800000 },
             });
             // deletes queue after 30 minutes if unused
             console.log("Queue created...");
             console.log(`Waiting for messages from ${queueName} queue...`);
 
-            channel.consume(
+            const {consumerTag} = await rabbitmq.responseChannel.consume(
                 queueName,
                 (message) => {
                     console.log(`Received message...`);
                     try {
                         const msg = JSON.parse(message.content.toString());
-                        console.log({msg})
+                        console.log({ msg });
                         res(msg);
-
                     } catch (err) {
                         rej(err);
-
                     } finally {
-                        channel.ack(message);
+                        rabbitmq.responseChannel.ack(message);
                         console.log("Dequeued message...");
-                        channel.close();
-                        console.log("Channel closed...");
+                        rabbitmq.responseChannel.cancel(consumerTag);
                     }
                 },
                 { noAck: false }
             );
+
+            setTimeout(() => {
+                rabbitmq.responseChannel.cancel(consumerTag); // Cancel the consumer
+                rej(new Error('Timeout waiting for response'));
+            }, 30000); // wait for response for 30 seconds
+
         } catch (err) {
             rej(err);
         }
-    });
+    });           
 }
 
 module.exports = {

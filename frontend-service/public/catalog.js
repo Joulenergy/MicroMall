@@ -20,31 +20,6 @@ function updateQuantity(item, change) {
         }
     });
 
-    // Update quantity on page
-    const currentQuantitySpan = item.querySelector(".current-qty");
-    const currentQuantity = parseInt(currentQuantitySpan.textContent);
-    const newQuantity = Math.min(currentQuantity + change, maxqty);
-
-    if (newQuantity == 0) {
-        item.remove();
-        const updatedItems = document.querySelectorAll(".item");
-        if (updatedItems.length == 0) {
-            const emptyCartMessage = document.createElement("p");
-            emptyCartMessage.textContent = "Cart is Empty";
-            emptyCartMessage.classList.add("emptycart");
-            listCartHTML.appendChild(emptyCartMessage);
-        }
-    } else {
-        currentQuantitySpan.textContent = newQuantity;
-    }
-
-    // Update total cart items
-    const cartCountSpan = document.getElementById("cartcount");
-    const cartCount = parseInt(cartCountSpan.textContent);
-    cartCountSpan.textContent = cartCount - currentQuantity + newQuantity;
-
-    updatePrice(item, currentQuantity, newQuantity);
-
     // Send to cart service
     fetch("/changecart", {
         method: "POST",
@@ -56,25 +31,13 @@ function updateQuantity(item, change) {
             qty: change,
             maxqty,
         }),
-    });
-}
-
-function updatePrice(item, currentQuantity, newQuantity) {
-    const checkoutPriceParagraph = document.querySelector(".checkoutPrice");
-    const checkoutPrice = parseFloat(
-        checkoutPriceParagraph.textContent.split("$")[1]
-    );
-    const totalPriceDiv = item.querySelector(".totalPrice");
-    const totalPrice = parseFloat(totalPriceDiv.textContent.split("$")[1]);
-
-    // Calculate new prices
-    const newTotalPrice = (totalPrice / currentQuantity) * newQuantity;
-    const newCheckoutPrice = checkoutPrice - totalPrice + newTotalPrice;
-
-    // Set prices
-    totalPriceDiv.textContent = "$ " + newTotalPrice.toFixed(2);
-    checkoutPriceParagraph.textContent =
-        "Total Price: $" + newCheckoutPrice.toFixed(2);
+    })
+    .then((res) => {
+        if (res.redirected) {
+            // Handle redirection
+            window.location.href = res.url;
+        }
+    })
 }
 
 // Close and open cart tab
@@ -91,7 +54,6 @@ closeCart.addEventListener("click", () => {
     });
 });
 
-// Minus and plus buttons in cart
 items.forEach((item) => {
     const minusSpan = item.querySelector(".minus");
     const plusSpan = item.querySelector(".plus");

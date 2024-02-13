@@ -11,13 +11,17 @@ const rabbitSettings = {
 
 let data = {
     conn: null,
+    responseChannel: null,
 };
 
 console.log("Connecting to rabbitmq...");
 amqp.connect(rabbitSettings)
-    .then((conn) => {
+    .then(async (conn) => {
         console.log("Connected to rabbitmq");
         data.conn = conn;
+        data.responseChannel = await conn.createChannel();
+        data.responseChannel.prefetch(1);
+        console.log("Response channel created...");
     })
     .catch(console.error);
 
