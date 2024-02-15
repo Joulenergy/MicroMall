@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroMall Confirm Checkout Page</title>
+    <link rel="stylesheet" type="text/css" href="catalog.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Products Available For Purchase</h1>
+    <% let totalPrice = 0 %>
+    <% console.log({cartitems}) %>
+    <% console.log({productitems}) %>
+    <div class="listProduct">
+      <% for (let i=0; i<cartitems.length; i++) { %>
+        <div class="product-card">
+          <% const product = productitems.find((product) => product.name == cartitems[i].name) %>
+          <div>
+            <img
+            src="data:<%=product.image.contentType%>; base64, <%=Buffer.from(product.image.data.data).toString('base64')%>"
+            />
+          </div>
+          <h2><%= cartitems[i].name %></h2>
+          <% const itemTotalPrice = (Number(cartitems[i].price) * cartitems[i].quantity).toFixed(2) %>
+          <% totalPrice += Number(itemTotalPrice) %>
+          <p><%= cartitems[i].quantity %></p>
+          <p>$<%= itemTotalPrice %></p>
+        </div>
+      <% }; %>
+    </div>
+    <p>Total Price: $<%= totalPrice.toFixed(2) %></p>
+    <form action="http://localhost:8000/create-checkout-session" class="paynow" method="post">
+      <input type="hidden" value="<%= userId %>">
+      <input type="submit" value="Pay Now">
+    </form> 
+</div>
+</body>
+</html>

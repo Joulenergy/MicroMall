@@ -12,7 +12,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "change-cart", async (message, channel) => {
-            let { sessionid, id, name, price, qty, maxqty } = JSON.parse(
+            let { itemid, sessionid, id, name, price, qty, maxqty } = JSON.parse(
                 message.content.toString()
             );
             qty = parseInt(qty);
@@ -34,7 +34,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 if (itemIndex == -1) {
                     // Product is not in cart
-                    cart.items.push({ name, quantity: qty, price });
+                    cart.items.push({ _id:itemid, name, quantity: qty, price });
                     cart.save();
                     
                 } else {
@@ -68,7 +68,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     // Create new cart
                     const newCart = new Carts({
                         _id: id,
-                        items: [{ name, quantity: qty, price }],
+                        items: [{ _id:itemid, name, quantity: qty, price }],
                     });
 
                     await newCart.save();

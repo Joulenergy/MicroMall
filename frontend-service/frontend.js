@@ -46,9 +46,17 @@ app.get("/", async (req, res) => {
             console.log({ cart });
 
             if (JSON.stringify(cart) == "{}") {
-                res.render("catalog", { showcart, productitems, cartitems: {} });
+                res.render("catalog", {
+                    showcart,
+                    productitems,
+                    cartitems: {},
+                });
             } else {
-                res.render("catalog", { showcart, productitems, cartitems: cart.items });
+                res.render("catalog", {
+                    showcart,
+                    productitems,
+                    cartitems: cart.items,
+                });
             }
         } catch (err) {
             console.log(`Error loading catalog page -> ${err}`);
@@ -70,8 +78,77 @@ app.use("/", authRouter);
 const cartRouter = require("./routes/cart");
 app.use("/", cartRouter);
 
-app.post("/checkstocks", (req, res) => {
-    res.send("Checking Stocks for Your Order...");
+app.post("/checkstocks", async (req, res) => {
+    try {
+        // ask cart service to send data
+        sendItem(req, "get-cart", { id: req.session.userId });
+
+        let cart = await getResponse(req.sessionID);
+        console.log({ cart });
+
+        let productIds = [];
+        cart.items.forEach((item) => {
+            productIds.push(item._id);
+        });
+
+        // Ask product service to send data
+        sendItem(req, "catalog", { all: false, productIds });
+
+        // Get response from product service
+        const productitems = await getResponse(req.sessionID);
+        console.log({ productitems });
+
+        // Check stocks
+        let product;
+        cart.items.forEach(async (item) => {
+            const correspondingProduct = productitems.find(
+                (product) => product._id == item._id
+            );
+            console.log({ correspondingProduct });
+
+            if (correspondingProduct) {
+                if (correspondingProduct.quantity < item.quantity) {
+                    // qty will be a negative number
+                    const qty = parseInt(
+                        correspondingProduct.quantity - item.quantity
+                    );
+                    console.log({ cart });
+                    item.quantity = correspondingProduct.quantity;
+                    console.log({ cart });
+
+                    // changes cart in case user undo checkout and for payment
+                    sendItem(req, "change-cart", {
+                        id: req.session.userId,
+                        name: item.name,
+                        qty,
+                        maxqty: product.quantity,
+                    });
+                    await getResponse(req.sessionID);
+                }
+            } else {
+                // no stock in product, might have been deleted
+                console.log({ cart });
+                cart.items.slice(cart.items.indexOf(item), 1);
+                console.log({ cart });
+
+                // changes cart in case user undo checkout and for payment
+                sendItem(req, "change-cart", {
+                    id: req.session.userId,
+                    name: item.name,
+                    qty: -item.quantity,
+                    maxqty: product.quantity,
+                });
+                await getResponse(req.sessionID);
+            }
+        });
+        console.log({ cart });
+
+        // TODO: add image to the cart object and then send it to payment service
+
+        res.render("confirm", { userId: req.session.userId, productitems, cartitems: cart.items });
+    } catch (err) {
+        console.error(`Error checking stocks -> ${err}`);
+    }
 });
 
 app.listen(

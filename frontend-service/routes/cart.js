@@ -3,9 +3,10 @@ const { sendItem, getResponse } = require("../useRabbit");
 const router = express.Router();
 
 router.post("/addtocart", async (req, res) => {
-    const { name, price, qty, maxqty } = req.body;
+    const { itemid, name, price, qty, maxqty } = req.body;
     await sendItem(req, "change-cart", {
         id: req.session.userId,
+        itemid,
         name,
         price,
         qty,

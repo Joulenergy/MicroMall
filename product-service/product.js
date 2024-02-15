@@ -12,16 +12,17 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "catalog", async (message, channel) => {
-            const { sessionid, all, category } = JSON.parse(
+            const { sessionid, all, productIds } = JSON.parse(
                 message.content.toString()
             );
-
+            
+            // Get products for db
             let products;
             if (all) {
                 products = await Products.find({});
             } else {
-                // possible TODO: category if need to use in the future,
-                // if render diff pages with diff category products
+                // possible TODO: use categories to get products
+                products = await Products.find({ _id: { $in: productIds } });
             }
             // Respond to frontend service
             await sendItem(conn, sessionid, products);

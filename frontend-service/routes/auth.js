@@ -2,14 +2,14 @@
 
 const express = require("express");
 const { sendItem, getResponse } = require("../useRabbit");
+const rabbitmq = require("../rabbitmq");
 const router = express.Router();
 
 router
     .route("/login")
     .get((req, res) => {
         if (req.session.userId) {
-            res.send("Logout?");
-            //TODO: logout, destroy session, queue etc.
+            res.render("logout");
         } else {
             // Display login form
             res.render("login");
@@ -34,6 +34,24 @@ router
             console.error(`Error logging in -> ${err}`);
         }
     });
+
+router.post("/logout", async (req, res) => {
+    try {
+        // delete response queue
+        await rabbitmq.responseChannel.deleteQueue(req.sessionID);
+
+    } catch (err) {
+        console.error(`Unable to delete session queue -> ${err}`);
+    }
+    // destroy session data
+    req.session.destroy((err) => {
+        if (err) {
+            console.error(`Unable to Destroy Session -> ${err}`);
+        }
+    });
+
+    res.redirect("/login");
+});
 
 router
     .route("/register")

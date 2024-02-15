@@ -181,3 +181,10 @@ body.showCart .container{
     width: 0;
 }
 
+.paynow {
+    margin-bottom: 60px;
+}
+.paynow input {
+    padding: 10px;
+    font-size: 15px;
+}

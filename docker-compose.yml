@@ -90,6 +90,18 @@ services:
     volumes:
       - ./order-service:/app
 
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    depends_on:
+      - rabbitmq
+    ports:
+      - 8000:8000
+    volumes: # for development
+        - ./payment-service:/app
+    env_file:
+      - ./payment-service/payment.env
+
 volumes:
   auth-data:
   product-data:

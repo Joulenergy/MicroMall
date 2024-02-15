@@ -5,6 +5,7 @@ let iconCart = document.querySelector(".icon-cart");
 let closeCart = document.querySelector(".close");
 let listCartHTML = document.querySelector(".listCart");
 let items = document.querySelectorAll(".item");
+let checkout = document.querySelector(".checkOut");
 
 function updateQuantity(item, change) {
     // get name of product
@@ -39,6 +40,17 @@ function updateQuantity(item, change) {
         }
     })
 }
+
+checkout.addEventListener("click", () => {
+    // Check stocks
+    // Create a form element
+    const form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", "/checkstocks");
+    // Append the form to the document body and submit it
+    document.body.appendChild(form);
+    form.submit();
+});
 
 // Close and open cart tab
 iconCart.addEventListener("click", () => {
