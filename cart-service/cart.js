@@ -4,6 +4,7 @@ const Carts = require("./carts");
 const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
 const { consume, sendItem } = require("./useRabbit");
+const mongoose = require("mongoose");
 
 // main
 Promise.all([rabbitmq.connect(), mongo.connect()])
@@ -11,75 +12,117 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("Cart Service DB Connected");
         console.log("RabbitMQ Connected");
 
-        consume(conn, "change-cart", async (message, channel) => {
-            let { itemid, sessionid, id, name, price, qty, maxqty } = JSON.parse(
-                message.content.toString()
-            );
-            qty = parseInt(qty);
-            maxqty = parseInt(maxqty);
-            
-            let cart;
-            cart = await Carts.findOne({ _id: id });
+        consume(conn, "delete-cart", async (message, channel) => {
+            try {
+                const { id } = JSON.parse(message.content.toString());
 
-            if (cart) {
-                // Add product to current cart
-                let itemIndex = -1;
+                // Retrieve the cart by its ID
+                const cart = await Cart.findById(id);
 
-                // Check if product is already in cart
-                cart.items.forEach((item, index) => {
-                    if (item.name == name) {
-                        itemIndex = index;
-                    }
-                });
-
-                if (itemIndex == -1) {
-                    // Product is not in cart
-                    cart.items.push({ _id:itemid, name, quantity: qty, price });
-                    cart.save();
-                    
-                } else {
-                    // Product in cart already
-                    const item = cart.items[itemIndex];
-                    const newqty = item.quantity + qty;
-                    if (0 < newqty && newqty <= maxqty) {
-                        // Ensure user does not add to cart more than stock amount, maxqty
-                        item.quantity += qty;
-                        cart.save();
-                        
-                    } else if (newqty == 0) {
-                        // Remove item
-                        cart.items.splice(itemIndex, 1);
-                        cart.save();
-
-                        if (cart.items.length == 0) {
-                            // delete empty cart
-                            await Carts.deleteOne({ _id: id });
-                        }
-                    } else {
-                        // User is trying to add item but not enough stock
-                        item.quantity = maxqty;
-                        cart.save();
-                    }
+                if (!cart) {
+                throw new Error('Cart not found');
                 }
-            } else {
-                if (!id) {
-                    channel.nack(message, false, false);
-                } else {
-                    // Create new cart
-                    const newCart = new Carts({
-                        _id: id,
-                        items: [{ _id:itemid, name, quantity: qty, price }],
-                    });
 
-                    await newCart.save();
+                // Delete the cart
+                await Cart.deleteOne({ _id: id });
+
+                console.log('Cart deleted successfully');
+
+                channel.ack(message);
+                console.log("Dequeued message...");
+
+            } catch (err) {
+                if (error instanceof mongoose.Error.VersionError) {
+                    console.log('Concurrency conflict: Another process modified the cart. Requeuing message');
+                    // Handle concurrency conflict by requeuing edit
+                    channel.nack(message, false, true);
+                } else {
+                    console.error(`Error Deleting Cart -> ${err}`);
                 }
             }
+        });
+        consume(conn, "change-cart", async (message, channel) => {
+            try {
+                let { itemid, sessionid, id, name, price, qty, maxqty } =
+                JSON.parse(message.content.toString());
+                qty = parseInt(qty);
+                maxqty = parseInt(maxqty);
 
-            // Respond to frontend service
-            await sendItem(conn, sessionid, "success");
+                let cart;
+                cart = await Carts.findOne({ _id: id });
 
-            channel.ack(message);
-            console.log("Dequeued message...");
+                if (cart) {
+                    // Add product to current cart
+                    let itemIndex = -1;
+
+                    // Check if product is already in cart
+                    cart.items.forEach((item, index) => {
+                        if (item.name == name) {
+                            itemIndex = index;
+                        }
+                    });
+
+                    if (itemIndex == -1) {
+                        // Product is not in cart
+                        cart.items.push({
+                            _id: itemid,
+                            name,
+                            quantity: qty,
+                            price,
+                        });
+                        cart.save();
+                    } else {
+                        // Product in cart already
+                        const item = cart.items[itemIndex];
+                        const newqty = item.quantity + qty;
+                        if (0 < newqty && newqty <= maxqty) {
+                            // Ensure user does not add to cart more than stock amount, maxqty
+                            item.quantity += qty;
+                            cart.save();
+                        } else if (newqty == 0) {
+                            // Remove item
+                            cart.items.splice(itemIndex, 1);
+                            cart.save();
+
+                            if (cart.items.length == 0) {
+                                // delete empty cart
+                                await Carts.deleteOne({ _id: id });
+                            }
+                        } else {
+                            // User is trying to add item but not enough stock
+                            item.quantity = maxqty;
+                            cart.save();
+                        }
+                    }
+                } else {
+                    if (!id) {
+                        channel.nack(message, false, false);
+                    } else {
+                        // Create new cart
+                        const newCart = new Carts({
+                            _id: id,
+                            items: [{ _id: itemid, name, quantity: qty, price }],
+                        });
+
+                        await newCart.save();
+                    }
+                }
+
+                // Respond to frontend service
+                await sendItem(conn, sessionid, "success");
+
+                channel.ack(message);
+                console.log("Dequeued message...");
+
+            } catch (err) {
+                if (err instanceof mongoose.Error.VersionError) {
+                    console.error('Concurrency conflict: Another process modified the cart');
+                    // Handle concurrency conflict by requeuing edit
+                    channel.nack(message, false, true);
+                } else {
+                    console.error(`Error Changing Cart -> ${err}`);
+                }
+            }
         });
         consume(conn, "get-cart", async (message, channel) => {
             const { sessionid, id } = JSON.parse(message.content.toString());
@@ -95,5 +138,5 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         });
     })
     .catch((err) => {
-        console.log(`Cart Service Consuming Error -> ${err}`);
+        console.error(`Cart Service Consuming Error -> ${err}`);
     });

@@ -10,6 +10,6 @@ const ItemSchema = new mongoose.Schema({
 const CartSchema = new mongoose.Schema({
     _id: { type: String, required: true }, // Corresponds to userid
     items: { type: [ItemSchema], required: true }
-});
+}, { versionKey: '__v' });
 
 module.exports = Carts = mongoose.model("carts", CartSchema);

@@ -2,7 +2,7 @@
 
 const express = require("express");
 const app = express();
-const { sendItem, getResponse } = require("./useRabbit");
+const { sendExchange, getResponse } = require("./useRabbit");
 
 // Configure middleware
 app.use(express.urlencoded({ extended: true }));
@@ -13,29 +13,29 @@ app.post("/create-checkout-session", async (req, res) => {
     try {
         const { sessionid, userId, name, email } = req.body;
 
-        console.log({sessionid})
-        console.log({userId})
-        console.log({email})
-        console.log({name})
+        console.log({ sessionid });
+        console.log({ userId });
+        console.log({ email });
+        console.log({ name });
 
         // Retrieve the customer by email
         let customer = await stripe.customers.list({ email, limit: 1 });
 
-        console.log({customer})
+        console.log({ customer });
 
         // If customer exists, return the customer object
         if (!(customer && customer.data && customer.data.length > 0)) {
             // Customer does not exist - Make API call to create a customer in Stripe
-            console.log("First time customer. Creating stripe customer...")
+            console.log("First time customer. Creating stripe customer...");
             customer = await stripe.customers.create({
                 id: userId,
                 email: email,
                 name: name,
             });
-            console.log('Customer created')
+            console.log("Customer created");
         } else {
             customer = customer.data[0];
-            console.log("Customer data retrieved")
+            console.log("Customer data retrieved");
         }
 
         console.log({ customer });
@@ -47,7 +47,7 @@ app.post("/create-checkout-session", async (req, res) => {
         console.log({ cart });
 
         // in case user checks out on another browser or other possibilities
-        if (JSON.stringify(cart) == '{}') {
+        if (JSON.stringify(cart) == "{}") {
             res.redirect(`${process.env.CLIENT_URL}`);
         }
 
@@ -79,11 +79,10 @@ app.post("/create-checkout-session", async (req, res) => {
         });
 
         console.log({session})
-        // Send to frontend
-        // await sendItem(sessionid, {checkoutId: session.id});
-        
-        res.redirect(session.url);
+        // Send to payment exchange
+        // sendExchange();
 
+        res.redirect(session.url);
     } catch (err) {
         console.error(err);
     }

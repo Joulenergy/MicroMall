@@ -33,7 +33,7 @@
               />
               <h2 class="product-name"><%= item.name %></h2>
               <p class="price">$<%= item.price %></p>
-              <form action="/addtocart" method="post">
+              <form class="catalog-form" action="/addtocart" method="post">
                 <input type="hidden" name="maxqty" value=<%= item.quantity %>>
                 <input class="quantityInput" required type="number" name="qty" min="1" max=<%= item.quantity %>>
                 <input type="hidden" name="name" value="<%= item.name %>">

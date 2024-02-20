@@ -86,6 +86,11 @@ app.post("/checkstocks", async (req, res) => {
         let cart = await getResponse(req.sessionID);
         console.log({ cart });
 
+        if (JSON.stringify(cart) == "{}") {
+            // if cart is empty and user press checkout or other possibilities
+            res.redirect("/");
+        }
+
         let productIds = [];
         cart.items.forEach((item) => {
             productIds.push(item._id);
