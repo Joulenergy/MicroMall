@@ -31,9 +31,12 @@
     </div>
     <p>Total Price: $<%= totalPrice.toFixed(2) %></p>
     <form action="http://localhost:8000/create-checkout-session" class="paynow" method="post">
-      <input type="hidden" value="<%= userId %>">
+      <input type="hidden" name="sessionid" value="<%= sessionid %>">
+      <input type="hidden" name="name" value="<%= name %>">
+      <input type="hidden" name="email" value="<%= email %>">
+      <input type="hidden" name="userId" value="<%= userId %>">
       <input type="submit" value="Pay Now">
-    </form> 
+    </form>
 </div>
 </body>
 </html>

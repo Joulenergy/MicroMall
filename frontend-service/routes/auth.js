@@ -23,11 +23,14 @@ router
 
         // Get response from auth service
         try {
-            const { fail, id } = await getResponse(req.sessionID);
+            const { name, fail, id } = await getResponse(req.sessionID);
             if (fail) {
                 res.render("login", { fail: "Invalid Email or Password" });
             } else {
-                req.session.userId = id; // saves userId for session
+                // saves user details for session
+                req.session.name = name;
+                req.session.email = email;
+                req.session.userId = id; 
                 res.redirect("/");
             }
         } catch (err) {

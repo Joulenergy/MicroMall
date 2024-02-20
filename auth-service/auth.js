@@ -18,9 +18,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             const user = await User.findOne({ email });
             let fail = false;
             let id;
+            let name;
             if (!user) {
                 fail = true;
             } else {
+                name = user.name;
                 if (password !== user.password) {
                     fail = true;
                 } else {
@@ -28,7 +30,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 }
             }
             // Respond to frontend service
-            const msg = { id, fail };
+            const msg = { name, id, fail };
             await sendItem(conn, sessionid, msg);
             channel.ack(message);
             console.log("Dequeued message...");

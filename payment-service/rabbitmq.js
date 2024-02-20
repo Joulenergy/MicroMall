@@ -9,20 +9,34 @@ const rabbitSettings = {
     authMechanism: ["PLAIN", "AMQPLAIN", "EXTERNAL"],
 };
 
+const isSocketClosedError = (error) => {
+    return error.message === 'Socket closed abruptly during opening handshake';
+};
+
 let data = {
     conn: null,
     responseChannel: null,
 };
 
-console.log("Connecting to rabbitmq...");
-amqp.connect(rabbitSettings)
-    .then(async (conn) => {
-        console.log("Connected to rabbitmq");
+const connectToRabbitMQ = async () => {
+    try {
+        console.log("Connecting to RabbitMQ...");
+        const conn = await amqp.connect(rabbitSettings);
+        console.log("Connected to RabbitMQ");
         data.conn = conn;
         data.responseChannel = await conn.createChannel();
         data.responseChannel.prefetch(1);
         console.log("Response channel created...");
-    })
-    .catch(console.error);
+    } catch (error) {
+        if (isSocketClosedError(error)) {
+            console.error(error.message, "Retrying connection in 10 seconds...");
+            setTimeout(connectToRabbitMQ, 10000); 
+        } else {
+            console.error("Error connecting to RabbitMQ:", error.message);
+        }
+    }
+};
+
+connectToRabbitMQ();
 
 module.exports = data; // export reference to connection

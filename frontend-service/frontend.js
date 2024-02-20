@@ -143,9 +143,14 @@ app.post("/checkstocks", async (req, res) => {
         });
         console.log({ cart });
 
-        // TODO: add image to the cart object and then send it to payment service
-
-        res.render("confirm", { userId: req.session.userId, productitems, cartitems: cart.items });
+        res.render("confirm", {
+            sessionid: req.sessionID,
+            name: req.session.name,
+            email: req.session.email,
+            userId: req.session.userId,
+            productitems,
+            cartitems: cart.items,
+        });
     } catch (err) {
         console.error(`Error checking stocks -> ${err}`);
     }
