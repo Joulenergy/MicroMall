@@ -102,7 +102,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
         console.log({ session });
         // Send to payment exchange
-        // sendExchange();
+        // sendExchange({ userId, sessionid, checkoutId: session.id });
 
         res.redirect(session.url);
     } catch (err) {

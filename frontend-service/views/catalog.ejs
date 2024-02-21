@@ -7,6 +7,13 @@
     <link rel="stylesheet" type="text/css" href="catalog.css">
   </head>
   <body class=<%= showcart ? "showCart" : "" %>>
+    <% if (alertmsg) { %>
+      <script>
+        window.onload = () => {
+          window.alert("<%= alertmsg %>");
+        };
+    </script>
+    <% } %>
     <div class="container">
       <header>
           <div class="title">Products</div>

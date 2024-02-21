@@ -6,13 +6,8 @@ const router = express.Router();
 router
     .route("/createproduct")
     .get((req, res) => {
-        if (req.session.userId) {
-            // authenticated
-            // TODO: admin users authentication?
-            res.render("createproduct");
-        } else {
-            res.redirect("/login");
-        }
+        // TODO: admin users authentication?
+        res.render("createproduct");
     })
     .post(upload.single("image"), async (req, res) => {
         try {

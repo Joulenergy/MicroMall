@@ -12,39 +12,46 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("Cart Service DB Connected");
         console.log("RabbitMQ Connected");
 
-        consume(conn, "delete-cart", async (message, channel) => {
-            try {
-                const { id } = JSON.parse(message.content.toString());
+        consume(
+            conn,
+            "delete-cart",
+            async (message, channel) => {
+                try {
+                    const { userId } = JSON.parse(message.content.toString());
 
-                // Retrieve the cart by its ID
-                const cart = await Cart.findById(id);
+                    // Retrieve the cart by its ID
+                    const cart = await Cart.findById(userId);
 
-                if (!cart) {
-                throw new Error('Cart not found');
+                    if (!cart) {
+                        channel.nack(message, false, false);
+                        throw new Error("Cart not found");
+                    }
+
+                    // Delete the cart
+                    await Cart.deleteOne({ _id: userId });
+
+                    console.log("Cart deleted successfully");
+
+                    channel.ack(message);
+                    console.log("Dequeued message...");
+                } catch (err) {
+                    if (error instanceof mongoose.Error.VersionError) {
+                        console.log(
+                            "Concurrency conflict: Another process modified the cart. Requeuing message"
+                        );
+                        // Handle concurrency conflict by requeuing edit
+                        channel.nack(message, false, true);
+                    } else {
+                        console.error(`Error Deleting Cart -> ${err}`);
+                    }
                 }
-
-                // Delete the cart
-                await Cart.deleteOne({ _id: id });
-
-                console.log('Cart deleted successfully');
-
-                channel.ack(message);
-                console.log("Dequeued message...");
-
-            } catch (err) {
-                if (error instanceof mongoose.Error.VersionError) {
-                    console.log('Concurrency conflict: Another process modified the cart. Requeuing message');
-                    // Handle concurrency conflict by requeuing edit
-                    channel.nack(message, false, true);
-                } else {
-                    console.error(`Error Deleting Cart -> ${err}`);
-                }
-            }
-        });
+            },
+            "payment"
+        );
         consume(conn, "change-cart", async (message, channel) => {
             try {
                 let { itemid, sessionid, id, name, price, qty, maxqty } =
-                JSON.parse(message.content.toString());
+                    JSON.parse(message.content.toString());
                 qty = parseInt(qty);
                 maxqty = parseInt(maxqty);
 
@@ -70,7 +77,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                             quantity: qty,
                             price,
                         });
-                        cart.save();
+                        await cart.save();
                     } else {
                         // Product in cart already
                         const item = cart.items[itemIndex];
@@ -78,11 +85,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         if (0 < newqty && newqty <= maxqty) {
                             // Ensure user does not add to cart more than stock amount, maxqty
                             item.quantity += qty;
-                            cart.save();
+                            await cart.save();
                         } else if (newqty == 0) {
                             // Remove item
                             cart.items.splice(itemIndex, 1);
-                            cart.save();
+                            await cart.save();
 
                             if (cart.items.length == 0) {
                                 // delete empty cart
@@ -91,7 +98,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         } else {
                             // User is trying to add item but not enough stock
                             item.quantity = maxqty;
-                            cart.save();
+                            await cart.save();
                         }
                     }
                 } else {
@@ -101,7 +108,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         // Create new cart
                         const newCart = new Carts({
                             _id: id,
-                            items: [{ _id: itemid, name, quantity: qty, price }],
+                            items: [
+                                { _id: itemid, name, quantity: qty, price },
+                            ],
                         });
 
                         await newCart.save();
@@ -113,10 +122,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 channel.ack(message);
                 console.log("Dequeued message...");
-
             } catch (err) {
                 if (err instanceof mongoose.Error.VersionError) {
-                    console.error('Concurrency conflict: Another process modified the cart');
+                    console.error(
+                        "Concurrency conflict: Another process modified the cart"
+                    );
                     // Handle concurrency conflict by requeuing edit
                     channel.nack(message, false, true);
                 } else {
