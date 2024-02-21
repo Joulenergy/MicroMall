@@ -1,6 +1,6 @@
 "use strict";
 
-const {sendChannel,responseChannel} = require("./rabbitmq");
+const rabbitmq = require("./rabbitmq");
 
 /**
  * Sends item to queue in rabbitmq with default exchange
@@ -9,13 +9,43 @@ const {sendChannel,responseChannel} = require("./rabbitmq");
  */
 async function sendExchange(queue, msg) {
     // fanout exchange sending
+    const exchangeName = "payment";   
     try {
-        await sendChannel.assertQueue(queue, { durable: true });
+        await rabbitmq.sendChannel.assertQueue(queue, { durable: true });
         console.log("Queue created...");
 
-        await sendChannel.assertExchange('payment', 'fanout', {durable: true});
+        await rabbitmq.sendChannel.assertExchange(exchangeName, 'fanout', {durable: true});
 
-        sendChannel.sendToQueue(
+        rabbitmq.sendChannel.publish(
+            exchangeName,
+            '',
+            Buffer.from(JSON.stringify(msg)),
+            { persistent: true },
+            (err, ok) => {
+                if (err !== null) console.warn("Message nacked!");
+                else {
+                    console.log("Message acked");
+                    console.log(`Message sent to ${queue} queue...`);
+                }
+            }
+        );
+    } catch (err) {
+        console.error(`Error sending to ${queue} queue -> ${err}`);
+    }
+}
+
+/**
+ * Sends item to queue in rabbitmq with default exchange
+ * @param {string} queue
+ * @param {Object} msg
+ */
+async function sendItem(queue, msg) {
+    // default exchange sending
+    try {
+        await rabbitmq.sendChannel.assertQueue(queue, { durable: true });
+        console.log("Queue created...");
+
+        rabbitmq.sendChannel.sendToQueue(
             queue,
             Buffer.from(JSON.stringify(msg)),
             { persistent: true },
@@ -24,8 +54,6 @@ async function sendExchange(queue, msg) {
                 else {
                     console.log("Message acked");
                     console.log(`Message sent to ${queue} queue...`);
-                    sendChannel.close();
-                    console.log("Channel closed...");
                 }
             }
         );
@@ -44,7 +72,7 @@ function getResponse(queueName, userId) {
     // uses sessionid queue to get responses to frontend
     return new Promise(async (res, rej) => {
         try {
-            await responseChannel.assertQueue(queueName, {
+            await rabbitmq.responseChannel.assertQueue(queueName, {
                 durable: true,
                 arguments: { "x-expires": 1800000 },
             });
@@ -52,7 +80,7 @@ function getResponse(queueName, userId) {
             console.log("Queue created...");
             console.log(`Waiting for messages from ${queueName} queue...`);
 
-            const { consumerTag } = await responseChannel.consume(
+            const { consumerTag } = await rabbitmq.responseChannel.consume(
                 queueName,
                 (message) => {
                     console.log("Received message...");
@@ -60,11 +88,11 @@ function getResponse(queueName, userId) {
                         const msg = JSON.parse(message.content.toString());
                         console.log({ msg });
                         if (msg.userId !== userId) {
-                            responseChannel.nack(message, false, true);
+                            rabbitmq.responseChannel.nack(message, false, true);
                         } else {
-                            responseChannel.ack(message);
+                            rabbitmq.responseChannel.ack(message);
                             console.log("Dequeued message...");
-                            responseChannel.cancel(consumerTag);
+                            rabbitmq.responseChannel.cancel(consumerTag);
                             res(msg);
                         }
                     } catch (err) {
@@ -75,7 +103,7 @@ function getResponse(queueName, userId) {
             );
 
             setTimeout(() => {
-                responseChannel.cancel(consumerTag); // Cancel the consumer
+                rabbitmq.responseChannel.cancel(consumerTag); // Cancel the consumer
                 rej(new Error("Timeout waiting for response"));
             }, 30000); // wait for response for 30 seconds
         } catch (err) {
@@ -87,4 +115,5 @@ function getResponse(queueName, userId) {
 module.exports = {
     sendExchange,
     getResponse,
+    sendItem
 };

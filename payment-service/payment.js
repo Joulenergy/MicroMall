@@ -2,7 +2,7 @@
 
 const express = require("express");
 const app = express();
-const { sendExchange, getResponse } = require("./useRabbit");
+const { sendItem, sendExchange, getResponse } = require("./useRabbit");
 
 // Configure middleware
 app.use(express.urlencoded({ extended: true }));
@@ -57,6 +57,28 @@ app.post("/create-checkout-session", async (req, res) => {
             shipping_address_collection: {
                 allowed_countries: ["SG"],
             },
+            shipping_options: [
+                {
+                    shipping_rate_data: {
+                        type: "fixed_amount",
+                        fixed_amount: {
+                            amount: 500,
+                            currency: "sgd",
+                        },
+                        display_name: "Standard Delivery", 
+                        delivery_estimate: {
+                            minimum: {
+                                unit: "business_day",
+                                value: 5, // Minimum delivery estimate (1 business day)
+                            },
+                            maximum: {
+                                unit: "business_day",
+                                value: 7, // Maximum delivery estimate (1 business day)
+                            },
+                        },
+                    },
+                },
+            ],
             payment_method_types: ["card"],
             mode: "payment",
             line_items: cart.items.map((item) => {
@@ -66,7 +88,7 @@ app.post("/create-checkout-session", async (req, res) => {
                         product_data: {
                             name: item.name,
                             metadata: {
-                                id: item.id,
+                                id: item._id,
                             },
                         },
                         unit_amount: parseInt(parseFloat(item.price) * 100),
@@ -78,7 +100,7 @@ app.post("/create-checkout-session", async (req, res) => {
             cancel_url: `${process.env.CLIENT_URL}/cancel`,
         });
 
-        console.log({session})
+        console.log({ session });
         // Send to payment exchange
         // sendExchange();
 

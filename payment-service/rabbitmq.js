@@ -1,4 +1,4 @@
-const amqp = require("amqplib")
+const amqp = require("amqplib");
 const rabbitSettings = {
     protocol: "amqp",
     hostname: "host.docker.internal",
@@ -10,7 +10,7 @@ const rabbitSettings = {
 };
 
 const isSocketClosedError = (error) => {
-    return error.message === 'Socket closed abruptly during opening handshake';
+    return error.message === "Socket closed abruptly during opening handshake";
 };
 
 let data = {
@@ -33,8 +33,7 @@ const connectToRabbitMQ = async () => {
         console.log("Send channel created...");
     } catch (error) {
         if (isSocketClosedError(error)) {
-            console.error(error.message, "Retrying connection in 10 seconds...");
-            setTimeout(connectToRabbitMQ, 10000); 
+            console.error(`${error.message}. Retrying connection in 10 seconds...`);
         } else {
             console.error("Error connecting to RabbitMQ:", error.message);
         }
