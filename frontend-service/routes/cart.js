@@ -25,7 +25,7 @@ router.post("/changecart", async (req, res) => {
         maxqty,
     });
     await getResponse(req.sessionID);
-    res.redirect("/");
+    res.json({ refresh: true });
 });
 
 router.post("/cartstate", (req, res) => {

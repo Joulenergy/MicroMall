@@ -38,12 +38,24 @@ function updateQuantity(item, change) {
                 qty: change,
                 maxqty,
             }),
-        }).then((res) => {
-            if (res.redirected) {
-                // Handle redirection
-                window.location.href = res.url;
-            }
-        });
+        })
+            .then(async (res) => {
+                // Check if the response was successful
+                if (!res.ok) {
+                    throw new Error("Network response was not ok");
+                }
+
+                // Parse the JSON response
+                const data = await res.json();
+
+                // Check if the data contains the 'refresh' property
+                if (data.refresh) {
+                    window.location.reload();
+                }
+            })
+            .catch((error) => {
+                console.error("Error ->", error);
+            });
     } else {
         // User is trying to add item but not enough stock
         window.alert("Not enough stock!");
@@ -125,9 +137,9 @@ catalogForms.forEach((form) => {
             if (qty + addqty <= maxqty) {
                 form.submit();
             } else {
-                let msg = "Not enough stock!"
-                if (maxqty - qty > 0 ) {
-                    msg = `\nYou can only add ${maxqty - qty} more stock`
+                let msg = "Not enough stock!";
+                if (maxqty - qty > 0) {
+                    msg = `\nYou can only add ${maxqty - qty} more stock`;
                 }
                 // prevent form submit as not enough stock
                 window.alert(msg);
