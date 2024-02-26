@@ -12,13 +12,10 @@ const express = require("express");
 async function sendItem(req, queue, msg) {
     // default exchange sending
     try {
-        const channel = await rabbitmq.conn.createConfirmChannel();
-        console.log("Channel created...");
-
-        await channel.assertQueue(queue, { durable: true });
+        await rabbitmq.sendChannel.assertQueue(queue, { durable: true });
         console.log("Queue created...");
 
-        channel.sendToQueue(
+        rabbitmq.sendChannel.sendToQueue(
             queue,
             Buffer.from(JSON.stringify({ ...msg, sessionid: req.sessionID })),
             { persistent: true },
@@ -27,8 +24,6 @@ async function sendItem(req, queue, msg) {
                 else {
                     console.log("Message acked");
                     console.log(`Message sent to ${queue} queue...`);
-                    channel.close();
-                    console.log("Channel closed...");
                 }
             }
         );

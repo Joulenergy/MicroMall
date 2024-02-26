@@ -1,14 +1,13 @@
 const mongoose = require("mongoose");
 
-const ItemSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    quantity: { type: Number, required: true },
-});
-
 const OrderSchema = new mongoose.Schema({
-    userid: { type: String, required: true },
-    items: { type: [ItemSchema], required: true },
-    totalprice: { type: String, required: true },
+    _id: { type: String, required: true }, // Corresponds to client reference id in stripe
+    checkoutid: { type: String, required: true },
 });
 
-module.exports = Orders = mongoose.model("orders", OrderSchema);
+const OrdersSchema = new mongoose.Schema({
+    _id: { type: String, required: true }, // Corresponds to userid
+    orders: { type: [OrderSchema], required: true },
+});
+
+module.exports = Orders = mongoose.model("orders", OrdersSchema);

@@ -43,7 +43,7 @@ app.post("/create-checkout-session", async (req, res) => {
         // ask cart service for cart
         sendItem("get-cart", { sessionid: "payment", id: userId });
 
-        let cart = await getResponse("payment");
+        let cart = await getResponse("payment", userId);
         console.log({ cart });
 
         // in case user checks out on another browser or other possibilities
@@ -65,7 +65,7 @@ app.post("/create-checkout-session", async (req, res) => {
                             amount: 500,
                             currency: "sgd",
                         },
-                        display_name: "Standard Delivery", 
+                        display_name: "Standard Delivery",
                         delivery_estimate: {
                             minimum: {
                                 unit: "business_day",
@@ -102,7 +102,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
         console.log({ session });
         // Send to payment exchange
-        // sendExchange({ userId, sessionid, checkoutId: session.id });
+        sendExchange({ userId, sessionid, checkoutId: session.id });
 
         res.redirect(session.url);
     } catch (err) {

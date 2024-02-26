@@ -14,8 +14,8 @@ const isSocketClosedError = (error) => {
 };
 
 let data = {
-    conn: null,
     responseChannel: null,
+    sendChannel: null,
 };
 
 const connectToRabbitMQ = async () => {
@@ -23,10 +23,14 @@ const connectToRabbitMQ = async () => {
         console.log("Connecting to RabbitMQ...");
         const conn = await amqp.connect(rabbitSettings);
         console.log("Connected to RabbitMQ");
-        data.conn = conn;
-        data.responseChannel = await conn.createChannel();
-        data.responseChannel.prefetch(1);
-        console.log("Response channel created...");
+        
+         // Create channels
+         data.responseChannel = await conn.createChannel();
+         data.responseChannel.prefetch(1);
+         console.log("Response channel created...");
+ 
+         data.sendChannel = await conn.createConfirmChannel();
+         console.log("Send channel created...");
     } catch (error) {
         if (isSocketClosedError(error)) {
             console.error(`${error.message}. Retrying connection in 10 seconds...`);

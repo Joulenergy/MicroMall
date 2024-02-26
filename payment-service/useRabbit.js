@@ -7,13 +7,10 @@ const rabbitmq = require("./rabbitmq");
  * @param {string} queue
  * @param {Object} msg
  */
-async function sendExchange(queue, msg) {
+async function sendExchange(msg) {
     // fanout exchange sending
     const exchangeName = "payment";   
     try {
-        await rabbitmq.sendChannel.assertQueue(queue, { durable: true });
-        console.log("Queue created...");
-
         await rabbitmq.sendChannel.assertExchange(exchangeName, 'fanout', {durable: true});
 
         rabbitmq.sendChannel.publish(
@@ -25,7 +22,7 @@ async function sendExchange(queue, msg) {
                 if (err !== null) console.warn("Message nacked!");
                 else {
                     console.log("Message acked");
-                    console.log(`Message sent to ${queue} queue...`);
+                    console.log(`Message sent to ${exchangeName} exchange...`);
                 }
             }
         );
@@ -74,7 +71,6 @@ function getResponse(queueName, userId) {
         try {
             await rabbitmq.responseChannel.assertQueue(queueName, {
                 durable: true,
-                arguments: { "x-expires": 1800000 },
             });
             // deletes queue after 30 minutes if unused
             console.log("Queue created...");
@@ -93,7 +89,7 @@ function getResponse(queueName, userId) {
                             rabbitmq.responseChannel.ack(message);
                             console.log("Dequeued message...");
                             rabbitmq.responseChannel.cancel(consumerTag);
-                            res(msg);
+                            res(msg.cart);
                         }
                     } catch (err) {
                         rej(err);

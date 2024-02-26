@@ -1,6 +1,7 @@
 "use strict";
 
 const amqp = require("amqplib");
+let sendChannel;
 
 /**
  * Consumes from a queue using the default exchange
@@ -41,17 +42,19 @@ async function consume(conn, queueName, callback) {
  */
 async function sendItem(conn, queueName, msg) {
     try {
-        const channel = await conn.createConfirmChannel();
-        console.log("Channel created...");
+        if (!sendChannel) {
+            sendChannel = await conn.createConfirmChannel();
+            console.log("Send channel created...");
+        }
 
-        await channel.assertQueue(queueName, {
+        await sendChannel.assertQueue(queueName, {
             durable: true,
             arguments: { "x-expires": 1800000 },
         });
         // deletes queue after 30 minutes if unused
         console.log("Queue created...");
 
-        channel.sendToQueue(
+        sendChannel.sendToQueue(
             queueName,
             Buffer.from(JSON.stringify(msg)),
             { persistent: true },
@@ -60,8 +63,6 @@ async function sendItem(conn, queueName, msg) {
                 else {
                     console.log("Message acked");
                     console.log(`Message sent to ${queueName} queue...`);
-                    channel.close();
-                    console.log("Channel closed...");
                 }
             }
         );
@@ -69,7 +70,6 @@ async function sendItem(conn, queueName, msg) {
         console.error(`Error sending to ${queueName} queue -> ${err}`);
     }
 }
-
 module.exports = {
     sendItem,
     consume,

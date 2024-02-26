@@ -3,55 +3,65 @@
 const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
 const Orders = require("./orders");
-const {sendItem, consume} = require("./useRabbit");
+const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
+const { sendItem, consume } = require("./useRabbit");
 
 Promise.all([rabbitmq.connect(), mongo.connect()])
     .then(([conn]) => {
         console.log(`Product Service DB Connected`);
         console.log("RabbitMQ Connected");
 
-        // consume(conn, "catalog", async (message, channel) => {
-        //     const { sessionid, all, category } = JSON.parse(
-        //         message.content.toString()
-        //     );
-        //     // possible TODO: category if need to use in future
+        consume(
+            conn,
+            "create-order",
+            async (message, channel) => {
+                try {
+                    const { checkoutId, sessionid } = JSON.parse(
+                        message.content.toString()
+                    );
 
-        //     let products;
-        //     if (all) {
-        //         products = await Products.find({});
-        //     } else {
-        //         //possible TODO: in the future if render diff pages with diff category products
-        //     }
-        //     // Respond to frontend service
-        //     await sendItem(conn, sessionid, products);
-        //     channel.ack(message);
-        //     console.log("Dequeued message...");
-        // });
-        // consume(conn, "create-product", async (message, channel) => {
-        //     const { sessionid, name, quantity, image, price } = JSON.parse(
-        //         message.content.toString()
-        //     );
-        //     const productExists = await Products.findOne({ name });
-        //     let fail;
-        //     if (productExists) {
-        //         fail = true;
-        //     } else {
-        //         const newProduct = new Products({
-        //             name,
-        //             quantity:parseInt(quantity),
-        //             image,
-        //             price,
-        //         });
-        //         newProduct.save();
-        //         fail = false;
-        //     }
+                    // Get client ref id from stripe
+                    const session = await stripe.checkout.sessions.retrieve(
+                        checkoutId
+                    );
 
-        //     // Respond to frontend service
-        //     const msg = { fail };
-        //     await sendItem(conn, sessionid, msg);
-        //     channel.ack(message);
-        //     console.log("Dequeued message...");
-        // });
+                    const orderid = session.client_reference_id.split('-')[1];
+
+                    const newOrder = new Orders({
+                        _id: session.customer,
+                        orders: [{ _id: orderid, checkoutid: checkoutId }],
+                    });
+                    await newOrder.save();
+
+                    // Respond to frontend service
+                    await sendItem(conn, sessionid, { orderid });
+
+                    channel.ack(message);
+                    console.log("Dequeued message...");
+                } catch (err) {
+                    console.error(`Error Creating Order -> ${err}`);
+                }
+            },
+            "payment"
+        );
+        consume(conn, "get-orders", async (message, channel) => {
+            try {
+                const { userId, sessionid } = JSON.parse(
+                    message.content.toString()
+                );
+
+                // Find all orders with _id matching the regex
+                const orders = (await Orders.findById(userId)).orders;
+
+                // Respond to frontend service
+                await sendItem(conn, sessionid, orders);
+
+                channel.ack(message);
+                console.log("Dequeued message...");
+            } catch (err) {
+                console.error(`Error Getting Orders -> ${err}`);
+            }
+        });
     })
     .catch((err) => {
         console.log(`Order Service Consuming Error -> ${err}`);

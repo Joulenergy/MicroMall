@@ -20,7 +20,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     const { userId } = JSON.parse(message.content.toString());
 
                     // Retrieve the cart by its ID
-                    const cart = await Cart.findById(userId);
+                    const cart = await Carts.findById(userId);
 
                     if (!cart) {
                         channel.nack(message, false, false);
@@ -28,14 +28,14 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
 
                     // Delete the cart
-                    await Cart.deleteOne({ _id: userId });
+                    await Carts.findByIdAndDelete(userId);
 
                     console.log("Cart deleted successfully");
 
                     channel.ack(message);
                     console.log("Dequeued message...");
                 } catch (err) {
-                    if (error instanceof mongoose.Error.VersionError) {
+                    if (err instanceof mongoose.Error.VersionError) {
                         console.log(
                             "Concurrency conflict: Another process modified the cart. Requeuing message"
                         );
@@ -56,7 +56,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 maxqty = parseInt(maxqty);
 
                 let cart;
-                cart = await Carts.findOne({ _id: id });
+                cart = await Carts.findById(id);
 
                 if (cart) {
                     // Add product to current cart
@@ -93,7 +93,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                             if (cart.items.length == 0) {
                                 // delete empty cart
-                                await Carts.deleteOne({ _id: id });
+                                await Carts.findByIdAndDelete(id);
                             }
                         } else {
                             // User is trying to add item but not enough stock
@@ -136,13 +136,19 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         });
         consume(conn, "get-cart", async (message, channel) => {
             const { sessionid, id } = JSON.parse(message.content.toString());
-            let cart = await Carts.findOne({ _id: id });
+            let cart = await Carts.findById(id);
 
             // Respond to frontend service
             if (cart === null) {
                 cart = {};
             }
-            await sendItem(conn, sessionid, cart);
+
+            if (sessionid === "payment") {
+                await sendItem(conn, sessionid, { cart, userId: id });
+            } else {
+                await sendItem(conn, sessionid, cart);
+            }
+
             channel.ack(message);
             console.log("Dequeued message...");
         });

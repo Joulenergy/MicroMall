@@ -55,6 +55,8 @@ services:
       - product-mongo
     volumes: # for development
       - ./product-service:/app
+    env_file:
+      - ./product-service/product.env
 
   cart-mongo:
     image: mongo
@@ -89,6 +91,8 @@ services:
       - order-mongo
     volumes:
       - ./order-service:/app
+    env_file:
+      - ./order-service/order.env
 
   payment-service:
     build: ./payment-service
