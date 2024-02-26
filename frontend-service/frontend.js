@@ -41,11 +41,11 @@ app.use((req, res, next) => {
  */
 async function checkstocks(req, productitems, cart) {
     let alertmsg = "";
-    let promises = [];
+    let removeItems = [];
 
     // Check stocks
-    cart.items.forEach(async (item) => {
-        const correspondingProduct = productitems.find(
+    for (const item of cart.items) {
+        let correspondingProduct = productitems.find(
             (product) => product._id == item._id
         );
         console.log({ correspondingProduct });
@@ -68,26 +68,17 @@ async function checkstocks(req, productitems, cart) {
                 }
 
                 // update cart
-                promises.push(
-                    sendItem(req, "change-cart", {
-                        id: req.session.userId,
-                        name: item.name,
-                        qty,
-                        maxqty: correspondingProduct.quantity,
-                    })
-                );
-                promises.push(getResponse(req.sessionID));
+                sendItem(req, "change-cart", {
+                    id: req.session.userId,
+                    name: item.name,
+                    qty,
+                    maxqty: correspondingProduct.quantity,
+                })
+                await getResponse(req.sessionID);
             }
         } else {
             // no stock in product, might have been deleted
-            console.log({ cartitems: cart.items });
-            console.log("Removing product from cart...");
-            cart.items.splice(cart.items.indexOf(item), 1);
-            console.log({ cartitems: cart.items });
-
-            if (cart.items.length === 0) {
-                cart.items = {};
-            }
+            removeItems.push(item);
 
             // update alert msg
             if (!alertmsg) {
@@ -97,19 +88,27 @@ async function checkstocks(req, productitems, cart) {
             }
 
             // update cart
-            promises.push(
-                sendItem(req, "change-cart", {
-                    id: req.session.userId,
-                    name: item.name,
-                    qty: -item.quantity,
-                    maxqty: 0,
-                })
-            );
-            promises.push(getResponse(req.sessionID));
+            sendItem(req, "change-cart", {
+                id: req.session.userId,
+                name: item.name,
+                qty: -item.quantity,
+                maxqty: 0,
+            })
+            
+            await getResponse(req.sessionID);
         }
-    });
-    // Wait for all promises to resolve
-    await Promise.all(promises);
+    }
+
+    for (const item in removeItems) {
+        console.log({ cartitems: cart.items });
+        console.log("Removing product from cart...");
+        cart.items.splice(cart.items.indexOf(item), 1);
+        console.log({ cartitems: cart.items });
+        if (cart.items.length === 0) {
+            cart.items = {};
+        }
+    }
+
     return [cart, alertmsg];
 }
 
