@@ -48,31 +48,35 @@ function getResponse(queueName) {
             // deletes queue after 30 minutes if unused
             console.log("Queue created...");
             console.log(`Waiting for messages from ${queueName} queue...`);
+            
+            // Check for a message for 30 seconds
+            const timeoutPromise = new Promise((res, rej) => {
+                setTimeout(() => {
+                    rej(new Error(`Timeout waiting for response from ${queueName}`));
+                }, 30000);
+            });
+            const waitForMessage = async () => {
+                let msg;
+                    while (!msg) {
+                    msg = await rabbitmq.responseChannel.get(); // noAck default false
+                }
+                return msg;
+            }
 
-            const {consumerTag} = await rabbitmq.responseChannel.consume(
-                queueName,
-                (message) => {
-                    console.log(`Received message...`);
-                    try {
-                        const msg = JSON.parse(message.content.toString());
-                        console.log({ msg });
-                        res(msg);
-                    } catch (err) {
-                        rej(err);
-                    } finally {
-                        rabbitmq.responseChannel.ack(message);
-                        console.log("Dequeued message...");
-                        rabbitmq.responseChannel.cancel(consumerTag);
-                    }
-                },
-                { noAck: false }
-            );
-
-            setTimeout(() => {
-                rabbitmq.responseChannel.cancel(consumerTag); // Cancel the consumer
-                rej(new Error('Timeout waiting for response'));
-            }, 30000); // wait for response for 30 seconds
-
+            const receivedMsg = await Promise.race([waitForMessage(), timeoutPromise]);
+            if (receivedMsg) {
+                console.log("Received message...");
+                try {
+                    const msg = JSON.parse(receivedMsg.content.toString());
+                    console.log({msg})
+                    res(msg);
+                } catch (err) {
+                    rej(err)
+                } finally {
+                    rabbitmq.responseChannel.ack(message);
+                    console.log("Dequeued message...");
+                }
+            }
         } catch (err) {
             rej(err);
         }

@@ -9,13 +9,15 @@ const rabbitmq = require("./rabbitmq");
  */
 async function sendExchange(msg) {
     // fanout exchange sending
-    const exchangeName = "payment";   
+    const exchangeName = "payment";
     try {
-        await rabbitmq.sendChannel.assertExchange(exchangeName, 'fanout', {durable: true});
+        await rabbitmq.sendChannel.assertExchange(exchangeName, "fanout", {
+            durable: true,
+        });
 
         rabbitmq.sendChannel.publish(
             exchangeName,
-            '',
+            "",
             Buffer.from(JSON.stringify(msg)),
             { persistent: true },
             (err, ok) => {
@@ -76,32 +78,46 @@ function getResponse(queueName, userId) {
             console.log("Queue created...");
             console.log(`Waiting for messages from ${queueName} queue...`);
 
-            const { consumerTag } = await rabbitmq.responseChannel.consume(
-                queueName,
-                (message) => {
-                    console.log("Received message...");
-                    try {
-                        const msg = JSON.parse(message.content.toString());
-                        console.log({ msg });
-                        if (msg.userId !== userId) {
-                            rabbitmq.responseChannel.nack(message, false, true);
-                        } else {
-                            rabbitmq.responseChannel.ack(message);
-                            console.log("Dequeued message...");
-                            rabbitmq.responseChannel.cancel(consumerTag);
-                            res(msg.cart);
-                        }
-                    } catch (err) {
-                        rej(err);
-                    }
-                },
-                { noAck: false }
-            );
+            // Check for a message for 30 seconds
+            const timeoutPromise = new Promise((res, rej) => {
+                setTimeout(() => {
+                    rej(
+                        new Error(
+                            `Timeout waiting for response from ${queueName}`
+                        )
+                    );
+                }, 30000);
+            });
+            const waitForMessage = async () => {
+                let msg;
+                while (!msg) {
+                    msg = await rabbitmq.responseChannel.get(); // noAck default false
+                }
+                return msg;
+            };
 
-            setTimeout(() => {
-                rabbitmq.responseChannel.cancel(consumerTag); // Cancel the consumer
-                rej(new Error("Timeout waiting for response"));
-            }, 30000); // wait for response for 30 seconds
+            const receivedMsg = await Promise.race([
+                waitForMessage(),
+                timeoutPromise,
+            ]);
+            if (receivedMsg) {
+                console.log("Received message...");
+                try {
+                    const msg = JSON.parse(receivedMsg.content.toString());
+                    console.log({ msg });
+                    if (msg.userId !== userId) {
+                        rabbitmq.responseChannel.nack(message, false, true);
+                    } else {
+                        console.log("Dequeued message...");
+                        res(msg.cart);
+                    }
+                } catch (err) {
+                    rej(err);
+                } finally {
+                    rabbitmq.responseChannel.ack(message);
+                    console.log("Dequeued message...");
+                }
+            }
         } catch (err) {
             rej(err);
         }
@@ -111,5 +127,5 @@ function getResponse(queueName, userId) {
 module.exports = {
     sendExchange,
     getResponse,
-    sendItem
+    sendItem,
 };
