@@ -100,7 +100,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     missingIds.forEach((id) => {
                         // find quantity ordered and update notReserved array
                         const qty = quantities[productIds.indexOf(id)]
-                        notReserved.push({id, qty,})
+                        notReserved.push({_id: id, qty,})
                     });
                 }
 
@@ -119,7 +119,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     } else {
                         // Not enough stock to reserve
                         const lackingQty = minusQty - product.quantity;
-                        notReserved.push({id: product._id, qty: lackingQty,})
+                        notReserved.push({_id: product._id, qty: lackingQty,})
                         await Products.deleteOne({ _id: product._id });
                         console.log(`Product ${product.name} has been deleted as all stocks have been ordered`)
                     }
@@ -127,7 +127,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 console.log({notReserved});
 
-                await sendItem(conn, "stock-reserved", {orderid: session.client_reference_id, notReserved});
+                await sendItem(conn, "stock-reserved", {orderId: session.client_reference_id, notReserved});
                 channel.ack(message);
                 console.log("Dequeued message...");
             },

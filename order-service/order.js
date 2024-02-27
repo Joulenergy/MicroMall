@@ -29,7 +29,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                     const newOrder = new Orders({
                         _id: session.customer,
-                        orders: [{ _id: orderid, checkoutid: checkoutId }],
+                        orders: [{ _id: orderid, checkoutid: checkoutId, stockchecked: false }],
                     });
                     await newOrder.save();
 
@@ -60,6 +60,30 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 console.log("Dequeued message...");
             } catch (err) {
                 console.error(`Error Getting Orders -> ${err}`);
+            }
+        });
+        consume(conn, "stock-reserved", async (message, channel) => {
+            try {
+                const { orderId, notReserved } = JSON.parse(
+                    message.content.toString()
+                );
+
+                const [userId, orderTime] = orderId.split('-')
+
+                // Find the specific order
+                const orders = (await Orders.findById(userId)).orders;
+                const order = orders.filter((order) => {order._id === orderTime})[0];
+
+                // update the order
+                order.stockchecked = true;
+                order.notReserved = notReserved;
+                await order.save();
+                console.log("Order stockcheck status updated!")
+
+                channel.ack(message);
+                console.log("Dequeued message...");
+            } catch (err) {
+                console.error(`Error Updating Stock Reserved Status -> ${err}`);
             }
         });
     })

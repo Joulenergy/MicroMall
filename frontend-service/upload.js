@@ -4,16 +4,12 @@
 const multer = require("multer");
 
 const upload = multer({
-    limits: { fieldSize: 10 * 1024 * 1024 },
+    limits: { fileSize: 200 * 1024 }, // Limit file to 200 KB
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === "image/jpeg") {
-            file.contentType = "image/jpeg";
-            cb(null, true);
-        } else if (file.mimetype === "image/png") {
-            file.contentType = "image/png";
+        if (file.mimetype === "image/jpeg" || file.mimetype === "image/png") {
             cb(null, true);
         } else {
-            cb(new Error("Invalid file type"));
+            cb(new Error("Invalid file type"), false);
         }
     },
 });

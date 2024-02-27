@@ -2,6 +2,31 @@ const express = require("express");
 const upload = require("../upload");
 const { sendItem, getResponse } = require("../useRabbit");
 const router = express.Router();
+const multer = require("multer");
+
+function uploadFile(req, res, next) {
+    const uploadFile = upload.single("image");
+
+    uploadFile(req, res, (err) => {
+        console.error(err);
+        if (!err) {
+            next();
+        } else {
+            if (err instanceof multer.MulterError) {
+                // A Multer error occurred when uploading- file size limit
+                return res.render("createproduct", {
+                    fail: "File too large - 200 KB is limit",
+                });
+            }
+            if (err.message === "Invalid file type") {
+                // An unknown error occurred when uploading.
+                return res.render("createproduct", {
+                    fail: "Upload only jpeg or png!",
+                });
+            }
+        }
+    });
+}
 
 router
     .route("/createproduct")
@@ -9,7 +34,7 @@ router
         // TODO: admin users authentication?
         res.render("createproduct");
     })
-    .post(upload.single("image"), async (req, res) => {
+    .post(uploadFile, async (req, res) => {
         try {
             let { name, qty, price } = req.body;
             name = name.replace(/\w*/g, function (txt) {
@@ -23,7 +48,7 @@ router
                 quantity: qty,
                 image: {
                     data: req.file.buffer,
-                    contentType: req.file.contentType,
+                    contentType: req.file.mimetype,
                 },
                 price,
             };
