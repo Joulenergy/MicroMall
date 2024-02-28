@@ -25,16 +25,37 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         checkoutId
                     );
 
-                    const orderid = session.client_reference_id.split('-')[1];
+                    const [userId, orderTime] =
+                        session.client_reference_id.split("-");
 
-                    const newOrder = new Orders({
-                        _id: session.customer,
-                        orders: [{ _id: orderid, checkoutid: checkoutId, stockchecked: false }],
-                    });
-                    await newOrder.save();
+                    // Check if customer exists already
+                    const customer = await Orders.findById(userId);
+
+                    if (customer) {
+                        // Create order under customer
+                        customer.orders.push({
+                            _id: orderTime,
+                            checkoutid: checkoutId,
+                            stockchecked: false,
+                        });
+                        await customer.save();
+                    } else {
+                        // Create new order under customer
+                        const newOrder = new Orders({
+                            _id: userId,
+                            orders: [
+                                {
+                                    _id: orderTime,
+                                    checkoutid: checkoutId,
+                                    stockchecked: false,
+                                },
+                            ],
+                        });
+                        await newOrder.save();
+                    }
 
                     // Respond to frontend service
-                    await sendItem(conn, sessionid, { orderid });
+                    await sendItem(conn, sessionid, { orderTime });
 
                     channel.ack(message);
                     console.log("Dequeued message...");
@@ -68,17 +89,24 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     message.content.toString()
                 );
 
-                const [userId, orderTime] = orderId.split('-')
+                const [userId, orderTime] = orderId.split("-");
 
                 // Find the specific order
-                const orders = (await Orders.findById(userId)).orders;
-                const order = orders.filter((order) => {order._id === orderTime})[0];
+                const orders = await Orders.findById(userId);
+                const order = orders.orders.filter((order) => {
+                    return order._id === orderTime;
+                })[0];
+
+                if (!order) {
+                    // Order may not have been created yet
+                    channel.nack(message, false, true); // requeue message
+                }
 
                 // update the order
                 order.stockchecked = true;
                 order.notReserved = notReserved;
-                await order.save();
-                console.log("Order stockcheck status updated!")
+                await orders.save();
+                console.log("Order stockcheck status updated!");
 
                 channel.ack(message);
                 console.log("Dequeued message...");

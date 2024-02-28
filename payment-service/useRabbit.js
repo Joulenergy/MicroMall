@@ -114,7 +114,7 @@ function getResponse(queueName, userId) {
                 } catch (err) {
                     rej(err);
                 } finally {
-                    rabbitmq.responseChannel.ack(message);
+                    rabbitmq.responseChannel.ack(receivedMsg);
                     console.log("Dequeued message...");
                 }
             }

@@ -133,6 +133,33 @@ app.post("/checkstocks", async (req, res) => {
     }
 });
 
+app.post("/pay", (req, res) => {
+    req.session.payment = true;
+    res.end()
+});
+
+app.get("/success", async (req, res) => {
+    if (req.session.payment) {
+        const orderId = await getResponse(req.sessionID);
+        res.send(`<h2>Thank you for your order</h2><p>Orderid: ${orderId}</p>`);
+        // TODO: order page
+        req.session.payment = false;
+    } else {
+        res.redirect("/");
+    }
+});
+
+app.get("/cancel", (req, res) => {
+    if (req.session.payment) {
+        res.send(
+            '<h2>Need more time to browse your cart?</h2><a href="/">Back to catalog page</a>'
+        );
+        req.session.payment = false;
+    } else {
+        res.redirect("/");
+    }
+});
+
 app.listen(
     3000,
     console.log("Frontend Service running on http://localhost:3000")

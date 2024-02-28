@@ -87,9 +87,6 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 console.log({products});
 
-                console.log(productIds.length);
-                console.log(products.length);
-
                 let notReserved = [];
                 if (products.length < productIds.length) {
                     // Check which productIds are not found in db
