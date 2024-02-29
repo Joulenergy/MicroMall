@@ -18,7 +18,8 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             async (message, channel) => {
                 try {
                     const { userId } = JSON.parse(message.content.toString());
-
+                    console.log("Attempting to delete cart", userId);
+                    
                     // Retrieve the cart by its ID
                     const cart = await Carts.findById(userId);
 
