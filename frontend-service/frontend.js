@@ -140,9 +140,9 @@ app.post("/pay", (req, res) => {
 
 app.get("/success", async (req, res) => {
     if (req.session.payment) {
-        const orderId = await getResponse(req.sessionID);
-        res.send(`<h2>Thank you for your order</h2><p>Orderid: ${orderId}</p>`);
-        // TODO: order page
+        const {orderId} = await getResponse(req.sessionID);
+        res.send(`<h2>Thank you for your order!</h2><p>Orderid: ${orderId}</p><a href="/">Back to catalog page</a>`);
+        // TODO: view all orders page
         req.session.payment = false;
     } else {
         res.redirect("/");

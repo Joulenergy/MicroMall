@@ -16,7 +16,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             "create-order",
             async (message, channel) => {
                 try {
-                    const { checkoutId, sessionid } = JSON.parse(
+                    const { checkoutId } = JSON.parse(
                         message.content.toString()
                     );
 
@@ -54,6 +54,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         await newOrder.save();
                     }
 
+                    const sessionid = session.metadata.sessionid;
+                    console.log({sessionid});
+                    
                     // Respond to frontend service
                     await sendItem(conn, sessionid, { orderTime });
 
