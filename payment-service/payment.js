@@ -16,7 +16,6 @@ let tunnel;
 async function setupWebhookEndpoint() {
     try {
         tunnel = await localtunnel({ port: 8000 });
-        console.log("localtunnel URL:", tunnel.url);
 
         // Create a webhook endpoint in your Stripe account if does not exist
         const webhookEndpoint = (

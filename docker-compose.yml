@@ -38,6 +38,7 @@ services:
       - rabbitmq
     volumes: # for development
       - ./auth-service:/app
+      - /app/node_modules
 
   product-mongo:
     image: mongo
@@ -55,6 +56,7 @@ services:
       - product-mongo
     volumes: # for development
       - ./product-service:/app
+      - /app/node_modules
     env_file:
       - ./product-service/product.env
 
@@ -74,6 +76,7 @@ services:
         - cart-mongo
       volumes: # for development
         - ./cart-service:/app
+        - /app/node_modules
 
   order-mongo:
     image: mongo
@@ -89,8 +92,9 @@ services:
     depends_on:
       - rabbitmq
       - order-mongo
-    volumes:
+    volumes: # for development
       - ./order-service:/app
+      - /app/node_modules
     env_file:
       - ./order-service/order.env
 
@@ -103,6 +107,7 @@ services:
       - 8000:8000
     volumes: # for development
         - ./payment-service:/app
+        - /app/node_modules
     env_file:
       - ./payment-service/payment.env
 

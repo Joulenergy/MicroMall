@@ -67,7 +67,6 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         expand: ["line_items", "line_items.data.price.product"],
                     }
                 );
-                console.log({session})
 
                 const lineItems = session.line_items.data
                 console.log({lineItems});
