@@ -1,6 +1,6 @@
 "use strict";
 
-const User = require("./User");
+const User = require("./user");
 const mongo = require("./mongo");
 const rabbitmq = require("./rabbitmq");
 const bcrypt = require("bcrypt");
@@ -45,10 +45,10 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             }
         });
         consume(conn, "create-account", async (message, channel) => {
+            const { sessionid, name, email, password } = JSON.parse(
+                message.content.toString()
+            );
             try {
-                const { sessionid, name, email, password } = JSON.parse(
-                    message.content.toString()
-                );
                 const userExists = await User.findOne({ email });
                 let fail;
                 if (userExists) {
@@ -59,17 +59,19 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         email,
                         name,
                         password: hashedPass,
+                        type: "buyer",
                     });
-                    newUser.save();
+                    await newUser.save();
                     fail = false;
                 }
-    
+
                 // Respond to frontend service
-                const msg = { fail };
-                await sendItem(conn, sessionid, msg);
+                await sendItem(conn, sessionid, { fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
+                await sendItem(conn, sessionid, { fail: true });
+                channel.ack(message);
                 console.error(`Error Creating Account -> ${err}`);
             }
         });
