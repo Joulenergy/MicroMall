@@ -13,10 +13,10 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "login", async (message, channel) => {
+            const { sessionid, email, password } = JSON.parse(
+                message.content.toString()
+            );
             try {
-                const { sessionid, email, password } = JSON.parse(
-                    message.content.toString()
-                );
                 const user = await User.findOne({ email });
                 let fail = false;
                 let id;
@@ -36,13 +36,16 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
                 }
                 // Respond to frontend service
-                const msg = { name, id, fail };
-                await sendItem(conn, sessionid, msg);
+                await sendItem(conn, sessionid, { name, id, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
+                // Respond to frontend service
+                await sendItem(conn, sessionid, { fail: true });
+                channel.ack(message);
+                console.log("Dequeued message...");
                 console.error(`Error Logging In -> ${err}`);
-            }
+            } 
         });
         consume(conn, "create-account", async (message, channel) => {
             const { sessionid, name, email, password } = JSON.parse(
@@ -72,6 +75,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             } catch (err) {
                 await sendItem(conn, sessionid, { fail: true });
                 channel.ack(message);
+                console.log("Dequeued message...");
                 console.error(`Error Creating Account -> ${err}`);
             }
         });
