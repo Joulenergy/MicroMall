@@ -6,6 +6,26 @@ const Orders = require("./orders");
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 const { sendItem, consume } = require("./useRabbit");
 
+/**
+ * Issue a full refund for a payment
+ * @param {String} payment_intent
+ * @param {String|null} reason
+ * @returns
+ */
+async function issueRefund(payment_intent, reason = null) {
+    try {
+        const refund = await stripe.refunds.create({
+            payment_intent,
+            reason,
+        });
+        console.log("Refund issued:", refund);
+        return refund;
+    } catch (error) {
+        console.error("Error issuing refund:", error);
+        throw error;
+    }
+}
+
 Promise.all([rabbitmq.connect(), mongo.connect()])
     .then(([conn]) => {
         console.log(`Product Service DB Connected`);
@@ -37,6 +57,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                             _id: orderTime,
                             checkoutid: checkoutId,
                             stockchecked: false,
+                            status: "pending",
                         });
                         await customer.save();
                     } else {
@@ -48,6 +69,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                                     _id: orderTime,
                                     checkoutid: checkoutId,
                                     stockchecked: false,
+                                    status: "pending",
                                 },
                             ],
                         });
@@ -55,8 +77,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
 
                     const sessionid = session.metadata.sessionid;
-                    console.log({sessionid});
-                    
+
                     // Respond to frontend service
                     await sendItem(conn, sessionid, { orderTime });
 
@@ -102,7 +123,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 if (!order) {
                     // Order may not have been created yet
-                    channel.nack(message, false, true); // requeue message
+                    setTimeout(() => {
+                        channel.nack(message, false, true);
+                    }, 5000); // requeue message
                 }
 
                 // update the order
@@ -115,6 +138,54 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 console.log("Dequeued message...");
             } catch (err) {
                 console.error(`Error Updating Stock Reserved Status -> ${err}`);
+            }
+        });
+        consume(conn, "refund", async (message, channel) => {
+            const { sessionid, orderId, reason } = JSON.parse(
+                message.content.toString()
+            );
+            try {
+                const [userId, orderTime] = orderId.split("-");
+
+                // Find the specific order
+                const orders = await Orders.findById(userId);
+
+                let fail = true;
+                let order;
+                if (orders) {
+                    order = orders.orders.filter((order) => {
+                        return order._id === orderTime;
+                    })[0];
+                }
+
+                if (order) {
+                    // get checkout session from stripe
+                    const session = await stripe.checkout.sessions.retrieve(
+                        order.checkoutid
+                    );
+                    
+                    if (reason) {
+                        await issueRefund(session.payment_intent, reason);
+                    } else {
+                        await issueRefund(session.payment_intent);
+                    }
+
+                    // update order status
+                    order.status = "refunded";
+                    await orders.save();
+
+                    fail = false;
+                }
+
+                // Respond to frontend service
+                await sendItem(conn, sessionid, { fail });
+                channel.ack(message);
+                console.log("Dequeued message...");
+            } catch (err) {
+                await sendItem(conn, sessionid, { fail: true });
+                channel.ack(message);
+                console.log("Dequeued message...");
+                console.error(`Error Refunding -> ${err}`);
             }
         });
     })

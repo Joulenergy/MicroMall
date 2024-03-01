@@ -75,6 +75,7 @@ async function sendItem(conn, queueName, msg) {
         );
     } catch (err) {
         console.error(`Error sending to ${queueName} queue -> ${err}`);
+        throw err // propogate error to the calling code
     }
 }
 
