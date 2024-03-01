@@ -11,7 +11,7 @@ const OrderSchema = new mongoose.Schema({
     stockchecked: { type: Boolean, required: true },
     notReserved: { type: [notReservedSchema] },
     status: { type: String, enum: ["pending", "accepted", "refunded"], required: true },
-}, { versionKey: '__v' });
+});
 
 const OrdersSchema = new mongoose.Schema({
     _id: { type: String, required: true }, // Corresponds to userid

@@ -9,17 +9,25 @@ const { sendItem, consume } = require("./useRabbit");
 /**
  * Issue a full refund for a payment
  * @param {String} payment_intent
- * @param {String|null} reason
+ * @param {String|undefined} reason
  * @returns
  */
-async function issueRefund(payment_intent, reason = null) {
+async function issueRefund(payment_intent, reason) {
+    console.log({ reason });
     try {
-        const refund = await stripe.refunds.create({
-            payment_intent,
-            reason,
-        });
+        let refund;
+        if (reason) {
+            refund = await stripe.refunds.create({
+                payment_intent,
+                reason,
+            });
+        } else {
+            refund = await stripe.refunds.create({
+                payment_intent,
+            });
+        }
         console.log("Refund issued:", refund);
-        return refund;
+        return;
     } catch (error) {
         console.error("Error issuing refund:", error);
         throw error;
@@ -163,7 +171,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     const session = await stripe.checkout.sessions.retrieve(
                         order.checkoutid
                     );
-                    
+
                     if (reason) {
                         await issueRefund(session.payment_intent, reason);
                     } else {
@@ -186,6 +194,45 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Refunding -> ${err}`);
+            }
+        });
+        consume(conn, "accept-order", async (message, channel) => {
+            const { sessionid, orderId } = JSON.parse(
+                message.content.toString()
+            );
+            try {
+                const [userId, orderTime] = orderId.split("-");
+
+                // Find the specific order
+                const orders = await Orders.findById(userId);
+
+                let fail = true;
+                let order;
+                if (orders) {
+                    order = orders.orders.filter((order) => {
+                        return order._id === orderTime;
+                    })[0];
+                }
+
+                if (order) {
+                    if (order.status === "pending") {
+                        // update order status
+                        order.status = "accepted";
+                        await orders.save();
+
+                        fail = false;
+                    }
+                }
+
+                // Respond to frontend service
+                await sendItem(conn, sessionid, { fail });
+                channel.ack(message);
+                console.log("Dequeued message...");
+            } catch (err) {
+                await sendItem(conn, sessionid, { fail: true });
+                channel.ack(message);
+                console.log("Dequeued message...");
+                console.error(`Error Accepting Order -> ${err}`);
             }
         });
     })
