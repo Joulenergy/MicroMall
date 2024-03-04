@@ -12,7 +12,7 @@ router.post("/addtocart", async (req, res) => {
         qty,
         maxqty,
     });
-    await getResponse(req.sessionID);
+    await getResponse(req.sessionID, req.session.corrId);
     res.redirect("/");
 });
 
@@ -24,7 +24,7 @@ router.post("/changecart", async (req, res) => {
         qty,
         maxqty,
     });
-    await getResponse(req.sessionID);
+    await getResponse(req.sessionID, req.session.corrId);
     res.json({ refresh: true });
 });
 

@@ -13,7 +13,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "catalog", async (message, channel) => {
-            const { sessionid, all, productIds } = JSON.parse(
+            const { corrId, sessionid, all, productIds } = JSON.parse(
                 message.content.toString()
             );
 
@@ -26,14 +26,13 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 products = await Products.find({ _id: { $in: productIds } });
             }
             // Respond to frontend service
-            await sendItem(conn, sessionid, products);
+            await sendItem(conn, sessionid, { corrId, products });
             channel.ack(message);
             console.log("Dequeued message...");
         });
         consume(conn, "create-product", async (message, channel) => {
-            const { sessionid, name, quantity, image, price } = JSON.parse(
-                message.content.toString()
-            );
+            const { corrId, sessionid, name, quantity, image, price } =
+                JSON.parse(message.content.toString());
             const productExists = await Products.findOne({ name });
             let fail;
             if (productExists) {
@@ -50,8 +49,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             }
 
             // Respond to frontend service
-            const msg = { fail };
-            await sendItem(conn, sessionid, msg);
+            await sendItem(conn, sessionid, { corrId, fail });
             channel.ack(message);
             console.log("Dequeued message...");
         });
@@ -59,7 +57,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             conn,
             "change-product",
             async (message, channel) => {
-                const { checkoutId } = JSON.parse(message.content.toString());
+                const { corrId, checkoutId } = JSON.parse(
+                    message.content.toString()
+                );
 
                 const session = await stripe.checkout.sessions.retrieve(
                     checkoutId,
@@ -68,9 +68,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
                 );
 
-                const lineItems = session.line_items.data
-                console.log({lineItems});
-                
+                const lineItems = session.line_items.data;
+                console.log({ lineItems });
+
                 // extract items and quantities that were ordered
                 let productIds = [];
                 let quantities = [];
@@ -78,52 +78,65 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     productIds.push(item.price.product.metadata.id);
                     quantities.push(item.quantity);
                 });
-                console.log({productIds});
-                console.log({quantities});
+                console.log({ productIds });
+                console.log({ quantities });
 
                 // Get products from db
-                const products = await Products.find({ _id: { $in: productIds } });
+                const products = await Products.find({
+                    _id: { $in: productIds },
+                });
 
-                console.log({products});
+                console.log({ products });
 
                 let notReserved = [];
                 if (products.length < productIds.length) {
                     // Check which productIds are not found in db
                     let foundIds = products.map((product) => product.id);
-                    console.log({foundIds})
+                    console.log({ foundIds });
 
-                    const missingIds = productIds.filter((id) => !foundIds.includes(id));
+                    const missingIds = productIds.filter(
+                        (id) => !foundIds.includes(id)
+                    );
                     missingIds.forEach((id) => {
                         // find quantity ordered and update notReserved array
-                        const qty = quantities[productIds.indexOf(id)]
-                        notReserved.push({_id: id, qty,})
+                        const qty = quantities[productIds.indexOf(id)];
+                        notReserved.push({ _id: id, qty });
                     });
                 }
 
                 // Check if stocks are enough individually and update the product stocks
                 products.forEach(async (product) => {
-                    const minusQty = quantities[productIds.indexOf(product._id.toString())];
+                    const minusQty =
+                        quantities[productIds.indexOf(product._id.toString())];
                     if (product.quantity > minusQty) {
-                        product.quantity -= minusQty
-                        await product.save()
-                        console.log(`Product ${product.name} stock has updated`)
-
-                    } else if (product.quantity === minusQty){
+                        product.quantity -= minusQty;
+                        await product.save();
+                        console.log(
+                            `Product ${product.name} stock has updated`
+                        );
+                    } else if (product.quantity === minusQty) {
                         await Products.deleteOne({ _id: product._id });
-                        console.log(`Product ${product.name} has been deleted as all stocks have been ordered`)
-
+                        console.log(
+                            `Product ${product.name} has been deleted as all stocks have been ordered`
+                        );
                     } else {
                         // Not enough stock to reserve
                         const lackingQty = minusQty - product.quantity;
-                        notReserved.push({_id: product._id, qty: lackingQty,})
+                        notReserved.push({ _id: product._id, qty: lackingQty });
                         await Products.deleteOne({ _id: product._id });
-                        console.log(`Product ${product.name} has been deleted as all stocks have been ordered`)
+                        console.log(
+                            `Product ${product.name} has been deleted as all stocks have been ordered`
+                        );
                     }
                 });
 
-                console.log({notReserved});
+                console.log({ notReserved });
 
-                await sendItem(conn, "stock-reserved", {orderId: session.client_reference_id, notReserved});
+                await sendItem(conn, "stock-reserved", {
+                    corrId,
+                    orderId: session.client_reference_id,
+                    notReserved,
+                });
                 channel.ack(message);
                 console.log("Dequeued message...");
             },

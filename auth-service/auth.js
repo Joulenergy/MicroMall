@@ -13,7 +13,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         console.log("RabbitMQ Connected");
 
         consume(conn, "login", async (message, channel) => {
-            const { sessionid, email, password } = JSON.parse(
+            const { corrId, sessionid, email, password } = JSON.parse(
                 message.content.toString()
             );
             try {
@@ -36,19 +36,19 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
                 }
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { name, id, fail });
+                await sendItem(conn, sessionid, { corrId, name, id, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { fail: true });
+                await sendItem(conn, sessionid, { corrId, fail: true });
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Logging In -> ${err}`);
             } 
         });
         consume(conn, "create-account", async (message, channel) => {
-            const { sessionid, name, email, password } = JSON.parse(
+            const { corrId, sessionid, name, email, password } = JSON.parse(
                 message.content.toString()
             );
             try {
@@ -69,11 +69,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 }
 
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { fail });
+                await sendItem(conn, sessionid, { corrId, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
-                await sendItem(conn, sessionid, { fail: true });
+                await sendItem(conn, sessionid, { corrId, fail: true });
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Creating Account -> ${err}`);

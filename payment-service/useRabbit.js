@@ -89,11 +89,22 @@ function getResponse(queueName, userId) {
                 }, 30000);
             });
             const waitForMessage = async () => {
-                let msg;
-                while (!msg) {
-                    msg = await rabbitmq.responseChannel.get(); // noAck default false
+                let corrMsg;
+                while (!corrMsg) {
+                    let msg = await rabbitmq.responseChannel.get(); // noAck default false
+                    if (msg) {
+                        const receivedUserId = JSON.parse(msg.content.toString()).userId;
+                        if (receivedUserId !== userId) {
+                            console.log(
+                                "Payment UserId does not match. Rejecting message..."
+                            );
+                            rabbitmq.responseChannel.nack(msg, false, true);
+                        } else {
+                            corrMsg = msg
+                        }
+                    }
                 }
-                return msg;
+                return corrMsg;
             };
 
             const receivedMsg = await Promise.race([
@@ -102,21 +113,11 @@ function getResponse(queueName, userId) {
             ]);
             if (receivedMsg) {
                 console.log("Received message...");
-                try {
-                    const msg = JSON.parse(receivedMsg.content.toString());
-                    console.log({ msg });
-                    if (msg.userId !== userId) {
-                        rabbitmq.responseChannel.nack(message, false, true);
-                    } else {
-                        console.log("Dequeued message...");
-                        res(msg.cart);
-                    }
-                } catch (err) {
-                    rej(err);
-                } finally {
-                    rabbitmq.responseChannel.ack(receivedMsg);
-                    console.log("Dequeued message...");
-                }
+                const msg = JSON.parse(receivedMsg.content.toString());
+                console.log({ msg });
+                rabbitmq.responseChannel.ack(receivedMsg);
+                console.log("Dequeued message...");
+                res(msg.cart);
             }
         } catch (err) {
             rej(err);

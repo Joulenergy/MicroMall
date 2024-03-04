@@ -51,7 +51,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         );
         consume(conn, "change-cart", async (message, channel) => {
             try {
-                let { itemid, sessionid, id, name, price, qty, maxqty } =
+                let { corrId, itemid, sessionid, id, name, price, qty, maxqty } =
                     JSON.parse(message.content.toString());
                 qty = parseInt(qty);
                 maxqty = parseInt(maxqty);
@@ -119,7 +119,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 }
 
                 // Respond to frontend service
-                await sendItem(conn, sessionid, "success");
+                await sendItem(conn, sessionid, {corrId, fail: false});
 
                 channel.ack(message);
                 console.log("Dequeued message...");
@@ -136,7 +136,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             }
         });
         consume(conn, "get-cart", async (message, channel) => {
-            const { sessionid, id } = JSON.parse(message.content.toString());
+            const { corrId, sessionid, id } = JSON.parse(message.content.toString());
             let cart = await Carts.findById(id);
 
             // Respond to frontend service
@@ -147,7 +147,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             if (sessionid === "payment") {
                 await sendItem(conn, sessionid, { cart, userId: id });
             } else {
-                await sendItem(conn, sessionid, cart);
+                await sendItem(conn, sessionid, { corrId, cart });
             }
 
             channel.ack(message);

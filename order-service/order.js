@@ -99,7 +99,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
         );
         consume(conn, "get-orders", async (message, channel) => {
             try {
-                const { userId, sessionid } = JSON.parse(
+                const { corrId, userId, sessionid } = JSON.parse(
                     message.content.toString()
                 );
 
@@ -107,7 +107,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 const orders = (await Orders.findById(userId)).orders;
 
                 // Respond to frontend service
-                await sendItem(conn, sessionid, orders);
+                await sendItem(conn, sessionid, { corrId, orders });
 
                 channel.ack(message);
                 console.log("Dequeued message...");
@@ -149,7 +149,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             }
         });
         consume(conn, "refund", async (message, channel) => {
-            const { sessionid, orderId, reason } = JSON.parse(
+            const { corrId, sessionid, orderId, reason } = JSON.parse(
                 message.content.toString()
             );
             try {
@@ -186,18 +186,18 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 }
 
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { fail });
+                await sendItem(conn, sessionid, { corrId, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
-                await sendItem(conn, sessionid, { fail: true });
+                await sendItem(conn, sessionid, { corrId, fail: true });
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Refunding -> ${err}`);
             }
         });
         consume(conn, "accept-order", async (message, channel) => {
-            const { sessionid, orderId } = JSON.parse(
+            const { corrId, sessionid, orderId } = JSON.parse(
                 message.content.toString()
             );
             try {
@@ -225,11 +225,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 }
 
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { fail });
+                await sendItem(conn, sessionid, { corrId, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
-                await sendItem(conn, sessionid, { fail: true });
+                await sendItem(conn, sessionid, { corrId, fail: true });
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Accepting Order -> ${err}`);

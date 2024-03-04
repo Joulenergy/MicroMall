@@ -23,7 +23,7 @@ router
 
         // Get response from auth service
         try {
-            const { name, fail, id } = await getResponse(req.sessionID);
+            const { name, fail, id } = await getResponse(req.sessionID, req.session.corrId);
             if (fail) {
                 res.render("login", { fail: "Invalid Email or Password" });
             } else {
@@ -69,7 +69,7 @@ router
 
         // Get response from auth service
         try {
-            const { fail } = await getResponse(req.sessionID);
+            const { fail } = await getResponse(req.sessionID, req.session.corrId);
             if (fail) {
                 res.render("register", { fail: "Failed to create account" });
             } else {

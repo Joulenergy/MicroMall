@@ -21,7 +21,7 @@ app.use(
         cookie: { httpOnly: true }, // secure: true is not set since run on localhost
     })
 );
-// TODO: add mongodb session store and add csurf?
+// TODO: add mongodb session store?
 
 // Ensure user does not access pages without logging in
 app.use((req, res, next) => {
@@ -41,31 +41,31 @@ app.get("/", async (req, res) => {
         sendItem(req, "catalog", { all: true });
 
         // Get response from product service
-        const productitems = await getResponse(req.sessionID);
-        console.log({ productitems });
+        const {products} = await getResponse(req.sessionID, req.session.corrId);
+        console.log({ products });
 
         // ask cart service to send data
         sendItem(req, "get-cart", { id: req.session.userId });
 
-        let cart = await getResponse(req.sessionID);
+        let {cart} = await getResponse(req.sessionID, req.session.corrId);
         console.log({ cart });
 
         if (JSON.stringify(cart) == "{}") {
             res.render("catalog", {
                 showcart,
-                productitems,
+                productitems: products,
                 cartitems: {},
                 alertmsg: "",
             });
         } else {
             let alertmsg;
-            [cart, alertmsg] = await checkstocks(req, productitems, cart);
+            [cart, alertmsg] = await checkstocks(req, products, cart);
             console.log({ cartbeforerender: cart });
             console.log({ alertmsgbeforerender: alertmsg });
 
             res.render("catalog", {
                 showcart,
-                productitems,
+                productitems: products,
                 cartitems: cart.items,
                 alertmsg,
             });
@@ -92,7 +92,7 @@ app.post("/checkstocks", async (req, res) => {
         // ask cart service to send data
         sendItem(req, "get-cart", { id: req.session.userId });
 
-        let cart = await getResponse(req.sessionID);
+        let {cart} = await getResponse(req.sessionID, req.session.corrId);
         console.log({ cartitems: cart.items });
 
         if (JSON.stringify(cart) == "{}") {
@@ -110,11 +110,11 @@ app.post("/checkstocks", async (req, res) => {
         sendItem(req, "catalog", { all: false, productIds });
 
         // Get response from product service
-        const productitems = await getResponse(req.sessionID);
-        console.log({ productitems });
+        const {products} = await getResponse(req.sessionID, req.session.corrId);
+        console.log({ products });
 
         let alertmsg;
-        [cart, alertmsg] = await checkstocks(req, productitems, cart);
+        [cart, alertmsg] = await checkstocks(req, products, cart);
         console.log({ cartitems: cart.items });
         console.log({ alertmsg });
 
@@ -123,7 +123,7 @@ app.post("/checkstocks", async (req, res) => {
             name: req.session.name,
             email: req.session.email,
             userId: req.session.userId,
-            productitems,
+            productitems: products,
             cartitems: cart.items,
             alertmsg,
         });
