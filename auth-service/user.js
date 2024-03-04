@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema({
     created_at: {
         type: Date,
         default: Date.now(),
+        immutable: true,
     },
     type: { type: String, enum: ["seller", "buyer"], required: true },
 });

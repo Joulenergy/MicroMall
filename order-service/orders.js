@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const notReservedSchema = new mongoose.Schema({
     _id: { type: String, required: true },
-    qty: { type: Boolean, required: true },
+    qty: { type: Number, required: true },
 });
 
 const OrderSchema = new mongoose.Schema({
