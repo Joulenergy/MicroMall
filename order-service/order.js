@@ -13,7 +13,6 @@ const { sendItem, consume } = require("./useRabbit");
  * @returns
  */
 async function issueRefund(payment_intent, reason) {
-    console.log({ reason });
     try {
         let refund;
         if (reason) {
@@ -29,7 +28,6 @@ async function issueRefund(payment_intent, reason) {
         console.log("Refund issued:", refund);
         return;
     } catch (error) {
-        console.error("Error issuing refund:", error);
         throw error;
     }
 }
@@ -152,6 +150,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
             const { corrId, sessionid, orderId, reason } = JSON.parse(
                 message.content.toString()
             );
+            // reasons: duplicate, fraudulent, or requested_by_customer
             try {
                 const [userId, orderTime] = orderId.split("-");
 
@@ -169,7 +168,13 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 if (order) {
                     // get checkout session from stripe
                     const session = await stripe.checkout.sessions.retrieve(
-                        order.checkoutid
+                        order.checkoutid,
+                        {
+                            expand: [
+                                "line_items",
+                                "line_items.data.price.product",
+                            ],
+                        }
                     );
 
                     if (reason) {
@@ -178,9 +183,22 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         await issueRefund(session.payment_intent);
                     }
 
+                    // extract items and quantities that were ordered
+                    const lineItems = session.line_items.data;
+                    console.log({ lineItems });
+
+                    lineItems.forEach((item) => {
+                        // send event to product-service to add back products
+                        sendItem(conn, "change-product", {
+                            productId: item.price.product.metadata.id,
+                            qty: item.quantity,
+                        });
+                    });
+
                     // update order status
                     order.status = "refunded";
                     await orders.save();
+                    console.log("Order status updated to refunded!")
 
                     fail = false;
                 }
@@ -216,6 +234,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
                 if (order) {
                     if (order.status === "pending") {
+                        console.log(`Accepting order ${orderId}...`)
                         // update order status
                         order.status = "accepted";
                         await orders.save();
