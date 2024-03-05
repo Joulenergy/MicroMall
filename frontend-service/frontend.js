@@ -26,7 +26,10 @@ app.use(
 // Ensure user does not access pages without logging in
 app.use((req, res, next) => {
     if (!req.session.userId && !["/login", "/register"].includes(req.path)) {
+        // user has not login yet
         res.redirect("/login");
+    } else if (req.session.type !== 'admin' && ["/createproduct"].includes(req.path)) {
+        res.redirect("/");
     } else {
         next();
     }

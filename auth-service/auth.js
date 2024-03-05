@@ -21,10 +21,11 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 let fail = false;
                 let id;
                 let name;
+                let type;
                 if (!user) {
                     fail = true;
                 } else {
-                    name = user.name;
+                    
                     const isEqual = await bcrypt.compare(
                         password,
                         user.password
@@ -33,10 +34,12 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                         fail = true;
                     } else {
                         id = user._id;
+                        name = user.name;
+                        type = user.type; // admin or buyer
                     }
                 }
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { corrId, name, id, fail });
+                await sendItem(conn, sessionid, { corrId, name, id, type, fail });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {

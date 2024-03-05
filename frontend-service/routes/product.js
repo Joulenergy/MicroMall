@@ -6,7 +6,6 @@ const router = express.Router();
 router
     .route("/createproduct")
     .get((req, res) => {
-        // TODO: admin users authentication?
         res.render("createproduct");
     })
     .post(uploadFile, async (req, res) => {

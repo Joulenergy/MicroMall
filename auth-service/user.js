@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
         default: Date.now(),
         immutable: true,
     },
-    type: { type: String, enum: ["seller", "buyer"], required: true },
+    type: { type: String, enum: ["admin", "buyer"], required: true },
 });
 
 module.exports = User = mongoose.model("user", UserSchema);
