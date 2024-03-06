@@ -167,6 +167,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 let { corrId, sessionid, productId, qty } = JSON.parse(
                     message.content.toString()
                 );
+                qty = parseInt(qty);
 
                 // Get product from db
                 const product = await Products.findById(productId);
@@ -177,7 +178,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     if (0 < newqty) {
                         // Ensure user does not add to cart more than stock amount, maxqty
                         product.quantity += qty;
-                        console.log(`Product ${product.name} stock has updated`)
+                        console.log(
+                            `Product ${product.name} stock has updated`
+                        );
                         await product.save();
                     } else if (newqty <= 0) {
                         // Remove item

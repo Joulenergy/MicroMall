@@ -51,6 +51,9 @@ router
             }
         } catch (err) {
             console.error(`Error creating product -> ${err}`);
+            res.render("createproduct", {
+                fail: "Failed to create product",
+            });
         }
     });
 

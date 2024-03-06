@@ -43,7 +43,7 @@ async function checkstocks(req, productitems, cart) {
                     qty,
                     maxqty: correspondingProduct.quantity,
                 })
-                await getResponse(req.sessionID);
+                await getResponse(req.sessionID, req.session.corrId);
             }
         } else {
             // no stock in product, might have been deleted
@@ -64,7 +64,7 @@ async function checkstocks(req, productitems, cart) {
                 maxqty: 0,
             })
             
-            await getResponse(req.sessionID);
+            await getResponse(req.sessionID, req.session.corrId);
         }
     }
 
