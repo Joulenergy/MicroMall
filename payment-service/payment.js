@@ -17,6 +17,11 @@ async function setupWebhookEndpoint() {
     try {
         tunnel = await localtunnel({ port: 8000 });
 
+        // Handle errors such as tunnel connection refused
+        tunnel.on("error", (error) => {
+            console.error("Localtunnel error:", error);
+        });
+
         // Create a webhook endpoint in your Stripe account if does not exist
         const webhookEndpoint = (
             await stripe.webhookEndpoints.list({
@@ -175,7 +180,10 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
                 const session = event.data.object;
                 // Handle checkout.session.completed event
                 console.log("Checkout session completed:", session);
-                sendExchange({ userId: session.customer, checkoutId: session.id });
+                sendExchange({
+                    userId: session.customer,
+                    checkoutId: session.id,
+                });
                 break;
             default:
                 console.log(`Unhandled event type ${event.type}`);
@@ -183,7 +191,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
 
         // Return a response to acknowledge receipt of the event
         res.json({ received: true });
-
     } catch (error) {
         console.error("Error processing Stripe webhook event:", error.message);
     }

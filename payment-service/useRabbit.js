@@ -29,7 +29,7 @@ async function sendExchange(msg) {
             }
         );
     } catch (err) {
-        console.error(`Error sending to ${queue} queue -> ${err}`);
+        console.error(`Error sending to ${exchangeName} exchange -> ${err}`);
     }
 }
 
