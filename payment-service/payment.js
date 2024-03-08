@@ -20,6 +20,7 @@ async function setupWebhookEndpoint() {
         // Handle errors such as tunnel connection refused
         tunnel.on("error", (error) => {
             console.error("Localtunnel error:", error);
+            setupWebhookEndpoint();
         });
 
         // Create a webhook endpoint in your Stripe account if does not exist
