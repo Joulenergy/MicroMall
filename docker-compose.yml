@@ -137,22 +137,23 @@ services:
     depends_on:
       - cadvisor
 
-  # grafana:
-  #   env_file:
-  #     - .env
-  #   image: grafana/grafana
-  #   container_name: grafana
-  #   user: "1000"
-  #   environment:
-  #     GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
-  #     GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
-  #   volumes:
-  #     - ./grafana/grafana_db:/var/lib/grafana
-  #   depends_on:
-  #     - cadvisor
-  #     - prometheus
-  #   ports:
-  #     - 3000:3000
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # defaults to admin admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      # bind mount for dashboard json files
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - cadvisor
+      - prometheus
+    ports:
+      - 3001:3000 # 3000 being used by frontend
 
 volumes:
   auth-data:
@@ -161,3 +162,4 @@ volumes:
   rabbit-data:
   order-data:
   prometheus-data:
+  grafana-data:
