@@ -39,6 +39,7 @@ services:
     volumes: # for development
       - ./auth-service:/app
       - /app/node_modules
+      - ./useRabbit.js:/app/useRabbit.js
 
   product-mongo:
     image: mongo
@@ -57,6 +58,7 @@ services:
     volumes: # for development
       - ./product-service:/app
       - /app/node_modules
+      - ./useRabbit.js:/app/useRabbit.js
     env_file:
       - ./product-service/product.env
 
@@ -77,6 +79,7 @@ services:
       volumes: # for development
         - ./cart-service:/app
         - /app/node_modules
+        - ./useRabbit.js:/app/useRabbit.js
 
   order-mongo:
     image: mongo
@@ -95,6 +98,7 @@ services:
     volumes: # for development
       - ./order-service:/app
       - /app/node_modules
+      - ./useRabbit.js:/app/useRabbit.js
     env_file:
       - ./order-service/order.env
 

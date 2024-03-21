@@ -17,7 +17,7 @@ async function consume(conn, queueName, callback, exchangeName) {
         const q = await channel.assertQueue(queueName, { durable: true });
         console.log("Queue created...");
 
-        channel.prefetch(1); // not realistic setting, allows for simulating fair distribution of tasks
+        channel.prefetch(5); // can change based on requirements
 
         if (exchangeName) {
             await channel.assertExchange(exchangeName, "fanout", {
@@ -50,13 +50,14 @@ async function consume(conn, queueName, callback, exchangeName) {
  * @param {Object} msg
  */
 async function sendItem(conn, queueName, msg) {
+    const queueList = ["payment", "change-product", "stock-reserved"];
     try {
         if (!sendChannel) {
             sendChannel = await conn.createConfirmChannel();
             console.log("Send channel created...");
         }
 
-        if (queueName === "stock-reserved") {
+        if (queueList.includes(queueName)) {
             await sendChannel.assertQueue(queueName, {
                 durable: true,
             });
@@ -64,8 +65,8 @@ async function sendItem(conn, queueName, msg) {
             await sendChannel.assertQueue(queueName, {
                 durable: true,
                 arguments: { "x-expires": 1800000 },
+                // deletes queue after 30 minutes if unused
             });
-            // deletes queue after 30 minutes if unused
         }
         console.log("Queue created...");
 
@@ -83,9 +84,9 @@ async function sendItem(conn, queueName, msg) {
         );
     } catch (err) {
         console.error(`Error sending to ${queueName} queue -> ${err}`);
+        throw err; // propogate error to the calling code
     }
 }
-
 module.exports = {
     sendItem,
     consume,
