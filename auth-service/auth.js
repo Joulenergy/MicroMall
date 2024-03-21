@@ -6,7 +6,24 @@ const rabbitmq = require("./rabbitmq");
 const bcrypt = require("bcrypt");
 const { consume, sendItem } = require("./useRabbit");
 
+/**
+ *  Creates default admin account if admin does not exist
+ *  */
+async function checkAdmin() {
+    const admin = await User.findOne({type: "admin"});
+    if (!admin) {
+        const newUser = new User({
+            email: "admin@gmail.com",
+            name: "admin",
+            password: "admin",
+            type: "admin",
+        });
+        await newUser.save();
+    }
+}
+
 // main
+checkAdmin();
 Promise.all([rabbitmq.connect(), mongo.connect()])
     .then(([conn]) => {
         console.log(`Auth Service DB Connected`);
