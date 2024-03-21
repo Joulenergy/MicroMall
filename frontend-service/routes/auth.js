@@ -23,38 +23,50 @@ router
 
         // Get response from auth service
         try {
-            const { name, fail, id, type } = await getResponse(req.sessionID, req.session.corrId);
+            const { name, fail, id, type } = await getResponse(
+                req.sessionID,
+                req.session.corrId
+            );
             if (fail) {
                 res.render("login", { fail: "Invalid Email or Password" });
             } else {
                 // saves user details for session
                 req.session.name = name;
                 req.session.email = email;
-                req.session.userId = id; 
+                req.session.userId = id;
                 req.session.type = type;
                 res.redirect("/");
             }
         } catch (err) {
             console.error(`Error logging in -> ${err}`);
+            res.render("login", { fail: "Something went wrong. Please try again later" });
         }
     });
 
 router.post("/logout", async (req, res) => {
     try {
-        // delete response queue
-        await rabbitmq.responseChannel.deleteQueue(req.sessionID);
-
-    } catch (err) {
-        console.error(`Unable to delete session queue -> ${err}`);
-    }
-    // destroy session data
-    req.session.destroy((err) => {
-        if (err) {
-            console.error(`Unable to Destroy Session -> ${err}`);
+        try {
+            // delete response queue
+            await rabbitmq.responseChannel.deleteQueue(req.sessionID);
+        } catch (err) {
+            console.error(`Unable to delete session queue -> ${err}`);
+            throw err;
         }
-    });
 
-    res.redirect("/login");
+        // destroy session data
+        req.session.destroy((err) => {
+            if (err) {
+                console.error(`Unable to Destroy Session -> ${err}`);
+                throw err;
+            } else {
+                res.redirect("/login");
+            }
+        });
+    } catch (err) {
+        res.send(
+            "Something went wrong trying to logout. Please try again later"
+        );
+    }
 });
 
 router
@@ -70,7 +82,10 @@ router
 
         // Get response from auth service
         try {
-            const { fail } = await getResponse(req.sessionID, req.session.corrId);
+            const { fail } = await getResponse(
+                req.sessionID,
+                req.session.corrId
+            );
             if (fail) {
                 res.render("register", { fail: "Failed to create account" });
             } else {
@@ -78,6 +93,7 @@ router
             }
         } catch (err) {
             console.error(`Error registering for account -> ${err}`);
+            res.render("register", { fail: "Failed to create account" });
         }
     });
 

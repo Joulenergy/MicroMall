@@ -51,6 +51,10 @@ function updateQuantity(item, change) {
                 // Check if the data contains the 'refresh' property
                 if (data.refresh) {
                     window.location.reload();
+                } else {
+                    window.alert(
+                        "Something went wrong while trying to change the cart. Please try again later"
+                    );
                 }
             })
             .catch((error) => {

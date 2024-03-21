@@ -75,6 +75,7 @@ app.get("/", async (req, res) => {
         }
     } catch (err) {
         console.log(`Error loading catalog page -> ${err}`);
+        res.send("Something went wrong loading the catalog page. Please try again later")
     }
 });
 
@@ -132,6 +133,7 @@ app.post("/checkstocks", async (req, res) => {
         });
     } catch (err) {
         console.error(`Error checking stocks -> ${err}`);
+        res.send("Something went wrong loading while checking for available stocks. Please try again later")
     }
 });
 
