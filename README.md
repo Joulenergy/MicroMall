@@ -24,6 +24,16 @@ cd MicroMall
 - Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
 - Add additional metric scraping jobs to prometheus.yml file
 - Add additional datasources configurations into datasources.yml file in grafana folder
+- Deploying multiple of the same container:
+```
+# example
+services:
+  myapp:
+    image: awesome/webapp
+    deploy:
+      mode: replicated
+      replicas: 6
+```
 
 Finally,
 ```
