@@ -12,13 +12,15 @@ const { consume, sendItem } = require("./useRabbit");
 async function checkAdmin() {
     const admin = await User.findOne({type: "admin"});
     if (!admin) {
+        console.log("Admin account not found. Creating default admin account...")
         const newUser = new User({
             email: "admin@gmail.com",
             name: "admin",
-            password: "admin",
+            password: await bcrypt.hash("admin", 10),
             type: "admin",
         });
         await newUser.save();
+        console.log("Admin account created successfully")
     }
 }
 
