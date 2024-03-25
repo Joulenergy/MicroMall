@@ -40,7 +40,7 @@ async function setupWebhookEndpoint() {
             // Write secret in env - need to rebuild image!
             fs.appendFileSync(
                 "payment.env",
-                `\nSTRIPE_WEBHOOK_SECRET=${endpoint.secret}`
+                `STRIPE_WEBHOOK_SECRET=${endpoint.secret}`
             );
 
             // since env is not loaded yet after being appended to file
@@ -101,7 +101,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
         // in case user checks out on another browser or other possibilities
         if (JSON.stringify(cart) == "{}") {
-            res.redirect(`${process.env.CLIENT_URL}`);
+            res.redirect("http://localhost:3000");
         }
 
         const session = await stripe.checkout.sessions.create({
@@ -150,8 +150,8 @@ app.post("/create-checkout-session", async (req, res) => {
                     quantity: item.quantity,
                 };
             }),
-            success_url: `${process.env.CLIENT_URL}/success`,
-            cancel_url: `${process.env.CLIENT_URL}/cancel`,
+            success_url: "http://localhost:3000/success",
+            cancel_url: "http://localhost:3000/cancel",
         });
 
         console.log({ session });

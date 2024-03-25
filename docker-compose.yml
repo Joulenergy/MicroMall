@@ -60,7 +60,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
     env_file:
-      - ./product-service/product.env
+      - .env
 
   cart-mongo:
     image: mongo
@@ -100,7 +100,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
     env_file:
-      - ./order-service/order.env
+      - .env
 
   payment-service:
     build: ./payment-service
@@ -113,6 +113,7 @@ services:
         - ./payment-service:/app
         - /app/node_modules
     env_file:
+      - .env
       - ./payment-service/payment.env
 
   # monitoring services
