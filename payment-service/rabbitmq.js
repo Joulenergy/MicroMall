@@ -34,6 +34,7 @@ const connectToRabbitMQ = async () => {
     } catch (error) {
         if (isSocketClosedError(error)) {
             console.error(`${error.message}. Retrying connection in 10 seconds...`);
+            setTimeout(connectToRabbitMQ, 10000); 
         } else {
             console.error("Error connecting to RabbitMQ:", error.message);
         }
