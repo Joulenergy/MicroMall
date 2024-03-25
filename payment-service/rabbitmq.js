@@ -42,4 +42,4 @@ const connectToRabbitMQ = async () => {
 
 connectToRabbitMQ();
 
-module.exports = data; // export reference to connection
+module.exports = data; // export reference to channels

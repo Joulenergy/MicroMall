@@ -36,10 +36,14 @@ services:
     depends_on:
       - auth-mongo
       - rabbitmq
+    environment:
+      - RABBIT_USERNAME=auth
+      - RABBIT_PASSWORD=auth
     volumes: # for development
       - ./auth-service:/app
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
+      - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
 
   product-mongo:
     image: mongo
@@ -55,10 +59,14 @@ services:
     depends_on:
       - rabbitmq
       - product-mongo
+    environment:
+      - RABBIT_USERNAME=product
+      - RABBIT_PASSWORD=product
     volumes: # for development
       - ./product-service:/app
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
+      - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
     env_file:
       - .env
 
@@ -71,15 +79,19 @@ services:
       - 5003:27017
 
   cart-service:
-      build: ./cart-service
-      container_name: cart-service
-      depends_on:
-        - rabbitmq
-        - cart-mongo
-      volumes: # for development
-        - ./cart-service:/app
-        - /app/node_modules
-        - ./rabbitmq/useRabbit.js:/app/useRabbit.js
+    build: ./cart-service
+    container_name: cart-service
+    depends_on:
+      - rabbitmq
+      - cart-mongo
+    environment:
+      - RABBIT_USERNAME=cart
+      - RABBIT_PASSWORD=cart
+    volumes: # for development
+      - ./cart-service:/app
+      - /app/node_modules
+      - ./rabbitmq/useRabbit.js:/app/useRabbit.js
+      - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
 
   order-mongo:
     image: mongo
@@ -95,10 +107,14 @@ services:
     depends_on:
       - rabbitmq
       - order-mongo
+    environment:
+      - RABBIT_USERNAME=order
+      - RABBIT_PASSWORD=order
     volumes: # for development
       - ./order-service:/app
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
+      - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
     env_file:
       - .env
 

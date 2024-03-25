@@ -12,10 +12,9 @@ app.use(express.urlencoded({ extended: true }));
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 
 // Set up webhook endpoint in Stripe
-let tunnel;
 async function setupWebhookEndpoint() {
     try {
-        tunnel = await localtunnel({ port: 8000 });
+        const tunnel = await localtunnel({ port: 8000 });
 
         // Handle errors such as tunnel connection refused
         tunnel.on("error", (error) => {
