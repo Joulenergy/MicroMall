@@ -6,6 +6,8 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+    expose:
+      - 15692
     container_name: rabbitmq
     volumes:
       - rabbit-data:/var/lib/rabbitmq
@@ -149,14 +151,15 @@ services:
   prometheus:
     build: ./prometheus 
     container_name: prometheus
-    ports:
-      - 9090:9090
     command:
       - --config.file=/etc/prometheus/prometheus.yml
     volumes:
       - prometheus-data:/prometheus
     depends_on:
       - cadvisor
+      - promtail
+    ports:
+      - 9090:9090
 
   grafana:
     image: grafana/grafana
@@ -175,6 +178,27 @@ services:
       - prometheus
     ports:
       - 3001:3000 # 3000 being used by frontend
+  
+  loki:
+    image: grafana/loki
+    container_name: loki
+    volumes:
+      - loki-data:/loki
+    ports:
+      - 3100:3100
+
+  promtail:
+    image:  grafana/promtail
+    container_name: promtail
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/docker-config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/docker-config.yml
+    depends_on:
+      - loki
+    ports:
+      - 9080:9080
 
 volumes:
   auth-data:
@@ -184,3 +208,4 @@ volumes:
   order-data:
   prometheus-data:
   grafana-data:
+  loki-data:
