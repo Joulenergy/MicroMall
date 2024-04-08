@@ -14,11 +14,17 @@ git clone https://github.com/Joulenergy/MicroMall.git
 
 # access the main directory
 cd MicroMall
+
+# create nodetini image
+docker build . -t nodetini
 ```
 
 #### Configurations Needed:
 - Set up a stripe account
-- Create env files with stripe private keys
+- Create .env file with stripe private key in Micromall directory
+```
+STRIPE_PRIVATE_KEY=<key>
+```
 
 #### Other Possible Configurations:
 - Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files

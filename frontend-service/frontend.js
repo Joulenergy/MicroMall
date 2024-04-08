@@ -4,6 +4,8 @@ const express = require("express");
 const session = require("express-session");
 const { sendItem, getResponse } = require("./useRabbit");
 const checkstocks = require("./checkstocks");
+const rabbitmq = require("./rabbitmq");
+const cleanup = require("./cleanup");
 const app = express();
 
 // Configure middleware
@@ -28,7 +30,10 @@ app.use((req, res, next) => {
     if (!req.session.userId && !["/login", "/register"].includes(req.path)) {
         // user has not login yet
         res.redirect("/login");
-    } else if (req.session.type !== 'admin' && ["/createproduct"].includes(req.path)) {
+    } else if (
+        req.session.type !== "admin" &&
+        ["/createproduct"].includes(req.path)
+    ) {
         res.redirect("/");
     } else {
         next();
@@ -44,13 +49,16 @@ app.get("/", async (req, res) => {
         sendItem(req, "catalog", { all: true });
 
         // Get response from product service
-        const {products} = await getResponse(req.sessionID, req.session.corrId);
+        const { products } = await getResponse(
+            req.sessionID,
+            req.session.corrId
+        );
         console.log({ products });
 
         // ask cart service to send data
         sendItem(req, "get-cart", { id: req.session.userId });
 
-        let {cart} = await getResponse(req.sessionID, req.session.corrId);
+        let { cart } = await getResponse(req.sessionID, req.session.corrId);
         console.log({ cart });
 
         if (JSON.stringify(cart) == "{}") {
@@ -75,7 +83,9 @@ app.get("/", async (req, res) => {
         }
     } catch (err) {
         console.log(`Error loading catalog page -> ${err}`);
-        res.send("Something went wrong loading the catalog page. Please try again later")
+        res.send(
+            "Something went wrong loading the catalog page. Please try again later"
+        );
     }
 });
 
@@ -96,7 +106,7 @@ app.post("/checkstocks", async (req, res) => {
         // ask cart service to send data
         sendItem(req, "get-cart", { id: req.session.userId });
 
-        let {cart} = await getResponse(req.sessionID, req.session.corrId);
+        let { cart } = await getResponse(req.sessionID, req.session.corrId);
         console.log({ cartitems: cart.items });
 
         if (JSON.stringify(cart) == "{}") {
@@ -114,7 +124,10 @@ app.post("/checkstocks", async (req, res) => {
         sendItem(req, "catalog", { all: false, productIds });
 
         // Get response from product service
-        const {products} = await getResponse(req.sessionID, req.session.corrId);
+        const { products } = await getResponse(
+            req.sessionID,
+            req.session.corrId
+        );
         console.log({ products });
 
         let alertmsg;
@@ -133,19 +146,30 @@ app.post("/checkstocks", async (req, res) => {
         });
     } catch (err) {
         console.error(`Error checking stocks -> ${err}`);
-        res.send("Something went wrong loading while checking for available stocks. Please try again later")
+        res.send(
+            "Something went wrong loading while checking for available stocks. Please try again later"
+        );
     }
 });
 
 app.post("/pay", (req, res) => {
     req.session.payment = true;
-    res.end()
+    res.end();
 });
 
 app.get("/success", async (req, res) => {
     if (req.session.payment) {
-        const {orderTime} = await getResponse(req.sessionID);
-        res.send(`<h2>Thank you for your order!</h2><p>OrderId: ${orderTime}</p><a href="/">Back to catalog page</a>`);
+        try {
+            const { orderTime } = await getResponse(req.sessionID);
+            res.send(
+                `<h2>Thank you for your order!</h2><p>OrderId: ${orderTime}</p><a href="/">Back to catalog page</a>`
+            );
+        } catch (err) {
+            res.send("Thank you for your order!");
+            console.error(
+                `OrderId not received by frontend for userId: ${req.session.userId}`
+            );
+        }
         // TODO: view all orders page
         req.session.payment = false;
     } else {
@@ -164,7 +188,16 @@ app.get("/cancel", (req, res) => {
     }
 });
 
-app.listen(
+const server = app.listen(
     3000,
     console.log("Frontend Service running on http://localhost:3000")
 );
+
+// handle graceful shutdown
+process.on("SIGTERM", () => {
+    const channels = [
+        ["response", rabbitmq.responseChannel],
+        ["send", rabbitmq.sendChannel],
+    ];
+    cleanup("frontend-service", rabbitmq.conn, channels, server);
+});

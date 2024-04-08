@@ -2,6 +2,7 @@
 
 const amqp = require("amqplib");
 let sendChannel;
+let channels = [];
 
 /**
  * Consumes from a queue using the default exchange
@@ -13,6 +14,7 @@ async function consume(conn, queueName, callback, exchangeName) {
     try {
         const channel = await conn.createChannel();
         console.log("Channel created...");
+        channels.push([queueName, channel]);
 
         const q = await channel.assertQueue(queueName, { durable: true });
         console.log("Queue created...");
@@ -55,6 +57,7 @@ async function sendItem(conn, queueName, msg) {
         if (!sendChannel) {
             sendChannel = await conn.createConfirmChannel();
             console.log("Send channel created...");
+            channels.push(["send", sendChannel]);
         }
 
         if (queueList.includes(queueName)) {
@@ -90,4 +93,5 @@ async function sendItem(conn, queueName, msg) {
 module.exports = {
     sendItem,
     consume,
+    channels,
 };

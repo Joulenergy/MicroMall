@@ -4,7 +4,8 @@ const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
 const Orders = require("./orders");
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
-const { sendItem, consume } = require("./useRabbit");
+const { consume, sendItem, channels } = require("./useRabbit");
+const cleanup = require("./cleanup");
 
 /**
  * Issue a full refund for a payment
@@ -253,6 +254,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 console.log("Dequeued message...");
                 console.error(`Error Accepting Order -> ${err}`);
             }
+        });
+        process.on("SIGTERM", () => {
+            cleanup("order-service", conn, channels);
         });
     })
     .catch((err) => {

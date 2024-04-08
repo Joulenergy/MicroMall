@@ -19,6 +19,7 @@ services:
       - rabbitmq
     volumes: # for development
       - ./frontend-service:/app
+      - ./cleanup.js:/app/cleanup.js
     env_file:
       - ./frontend-service/frontend.env
     ports:
@@ -46,6 +47,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
+      - ./cleanup.js:/app/cleanup.js
 
   product-mongo:
     image: mongo
@@ -69,6 +71,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
+      - ./cleanup.js:/app/cleanup.js
     env_file:
       - .env
 
@@ -94,6 +97,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
+      - ./cleanup.js:/app/cleanup.js
 
   order-mongo:
     image: mongo
@@ -117,6 +121,7 @@ services:
       - /app/node_modules
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
+      - ./cleanup.js:/app/cleanup.js
     env_file:
       - .env
 
@@ -130,6 +135,7 @@ services:
     volumes: # for development
         - ./payment-service:/app
         - /app/node_modules
+        - ./cleanup.js:/app/cleanup.js
     env_file:
       - .env
       - ./payment-service/payment.env
@@ -191,6 +197,7 @@ services:
     image:  grafana/promtail
     container_name: promtail
     volumes:
+      - /var/log:/var/log
       - ./promtail/promtail.yml:/etc/promtail/docker-config.yml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock

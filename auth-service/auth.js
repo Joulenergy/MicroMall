@@ -4,15 +4,18 @@ const User = require("./user");
 const mongo = require("./mongo");
 const rabbitmq = require("./rabbitmq");
 const bcrypt = require("bcrypt");
-const { consume, sendItem } = require("./useRabbit");
+const { consume, sendItem, channels } = require("./useRabbit");
+const cleanup = require("./cleanup");
 
 /**
  *  Creates default admin account if admin does not exist
  *  */
 async function checkAdmin() {
-    const admin = await User.findOne({type: "admin"});
+    const admin = await User.findOne({ type: "admin" });
     if (!admin) {
-        console.log("Admin account not found. Creating default admin account...")
+        console.log(
+            "Admin account not found. Creating default admin account..."
+        );
         const newUser = new User({
             email: "admin@gmail.com",
             name: "admin",
@@ -20,7 +23,7 @@ async function checkAdmin() {
             type: "admin",
         });
         await newUser.save();
-        console.log("Admin account created successfully")
+        console.log("Admin account created successfully");
     }
 }
 
@@ -44,7 +47,6 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 if (!user) {
                     fail = true;
                 } else {
-                    
                     const isEqual = await bcrypt.compare(
                         password,
                         user.password
@@ -58,7 +60,13 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     }
                 }
                 // Respond to frontend service
-                await sendItem(conn, sessionid, { corrId, name, id, type, fail });
+                await sendItem(conn, sessionid, {
+                    corrId,
+                    name,
+                    id,
+                    type,
+                    fail,
+                });
                 channel.ack(message);
                 console.log("Dequeued message...");
             } catch (err) {
@@ -67,7 +75,7 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 channel.ack(message);
                 console.log("Dequeued message...");
                 console.error(`Error Logging In -> ${err}`);
-            } 
+            }
         });
         consume(conn, "create-account", async (message, channel) => {
             const { corrId, sessionid, name, email, password } = JSON.parse(
@@ -100,6 +108,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 console.log("Dequeued message...");
                 console.error(`Error Creating Account -> ${err}`);
             }
+        });
+        process.on("SIGTERM", () => {
+            cleanup("auth-service", conn, channels);
         });
     })
     .catch((err) => {

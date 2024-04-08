@@ -4,7 +4,8 @@ const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
 const Products = require("./products");
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
-const { sendItem, consume } = require("./useRabbit");
+const { consume, sendItem, channels } = require("./useRabbit");
+const cleanup = require("./cleanup");
 
 // main
 Promise.all([rabbitmq.connect(), mongo.connect()])
@@ -224,6 +225,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                     console.error(`Error Changing Product -> ${err}`);
                 }
             }
+        });
+        process.on("SIGTERM", () => {
+            cleanup("product-service", conn, channels);
         });
     })
     .catch((err) => {

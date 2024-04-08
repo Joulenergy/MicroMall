@@ -5,21 +5,28 @@ const app = express();
 const localtunnel = require("localtunnel");
 const { sendItem, sendExchange, getResponse } = require("./useRabbit");
 const fs = require("fs");
+const rabbitmq = require("./rabbitmq");
+const cleanup = require("./cleanup");
 
 // Configure middleware
 app.use(express.urlencoded({ extended: true }));
-
 const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 
+let tunnel;
 // Set up webhook endpoint in Stripe
 async function setupWebhookEndpoint() {
     try {
-        const tunnel = await localtunnel({ port: 8000 });
+        tunnel = await localtunnel({ port: 8000 });
 
         // Handle errors such as tunnel connection refused
         tunnel.on("error", (error) => {
+            tunnel.close();
             console.error("Localtunnel error:", error);
             setupWebhookEndpoint();
+        });
+
+        tunnel.on("close", () => {
+            console.log("payment-service localtunnel closed");
         });
 
         // Create a webhook endpoint in your Stripe account if does not exist
@@ -196,7 +203,21 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
     }
 });
 
-app.listen(
+const server = app.listen(
     8000,
     console.log("Payment Service running on http://localhost:8000")
 );
+
+// handle graceful shutdown
+let sigtermCount = 0;
+process.on("SIGTERM", () => {
+    if (sigtermCount === 0) {
+        sigtermCount += 1;
+        const channels = [
+            ["response", rabbitmq.responseChannel],
+            ["send", rabbitmq.sendChannel],
+        ];
+        cleanup("payment-service", rabbitmq.conn, channels, server);
+        tunnel.close();
+    }
+});

@@ -3,8 +3,9 @@
 const Carts = require("./carts");
 const rabbitmq = require("./rabbitmq");
 const mongo = require("./mongo");
-const { consume, sendItem } = require("./useRabbit");
+const { consume, sendItem, channels } = require("./useRabbit");
 const mongoose = require("mongoose");
+const cleanup = require("./cleanup");
 
 // main
 Promise.all([rabbitmq.connect(), mongo.connect()])
@@ -152,6 +153,9 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
 
             channel.ack(message);
             console.log("Dequeued message...");
+        });
+        process.on("SIGTERM", () => {
+            cleanup("cart-service", conn, channels);
         });
     })
     .catch((err) => {
