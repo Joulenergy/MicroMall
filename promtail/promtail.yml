@@ -8,10 +8,132 @@ scrape_configs:
   - job_name: container_scrape 
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
-        refresh_interval: 5s
+        refresh_interval: 10s
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)' # removes leading / from container name
         target_label: 'container'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'logstream'
+    pipeline_stages:
+      - match:
+          selector: '{container=~".*-mongo$"}'
+          stages:
+            - json:
+                expressions:
+                  timestamp: t.date
+                  severity: s
+                  component: c
+                  id: 
+                  context: ctx
+                  tags: 
+            - labels:
+                severity:
+                component:
+                id:
+                context:
+                tags:
+            - timestamp:
+                source: timestamp
+                format: 2006-01-02T15:04:05.000Z07:00
+      - match:
+          selector: '{container=~"grafana"}'
+          stages:
+            - logfmt:
+                mapping:
+                  timestamp: t
+                  level:
+                  logger:
+                  msg:
+                  stage:
+                  uname:
+            - labels:
+                level:
+                logger:
+                stage:
+                uname:
+            - timestamp:
+                source: timestamp
+                format: RFC3339Nano
+            - pack:
+                labels:
+                  - msg
+                  - logger
+                  - level
+      - match:
+          selector: '{container=~"prometheus|promtail"}'
+          stages:
+            - logfmt:
+                mapping:
+                  timestamp: ts
+                  component:
+                  level:
+                  caller:
+                  msg:
+            - labels:
+                level:
+                caller:
+                component:
+            - timestamp:
+                source: timestamp
+                format: RFC3339Nano
+            - pack:
+                labels:
+                  - msg
+                  - caller
+                  - level
+      - match:
+          selector: '{container=~"loki"}'
+          stages:
+            - logfmt:
+                mapping:
+                  timestamp: ts
+                  component:
+                  level:
+                  caller:
+                  msg:
+                  length:
+                  query:
+                  query_hash:
+                  step:
+            - labels:
+                query_hash:
+                step:
+                level:
+                caller:
+                component:
+            - timestamp:
+                source: timestamp
+                format: RFC3339Nano
+            - pack:
+                labels:
+                  - query
+                  - query_hash
+                  - msg
+                  - caller
+                  - level
+      - match:
+          selector: '{container=~"rabbitmq"}'
+          stages:
+            - drop:
+                expression: ^$
+                drop_counter_reason: empty_log
+            - regex:
+                expression: "^(?s)(?P<timestamp>\\S+\\s\\S+?) (\\[(?P<level>\\S+)\\]) (<(?P<pid>0\\.\\d+\\.\\d+)>) (?P<msg>.*?)(\\S{1}\\[0m|$)"
+            - labels:
+                level:
+                pid:
+            - timestamp:
+                source: timestamp
+                format: 2006-01-02 15:04:05.999999Z07:00
+            - output:
+                source: msg
+                
+  - job_name: dockerdaemon
+    static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: daemonlogs
+        __path__: /dockerlogs/*log
+  
