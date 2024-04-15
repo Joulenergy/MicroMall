@@ -23,3 +23,21 @@ scrape_configs:
   static_configs:
   - targets:
     - rabbitmq:15692
+
+- job_name: loki
+  scrape_interval: 5s
+  static_configs:
+  - targets:
+    - loki:3100
+
+- job_name: promtail
+  scrape_interval: 5s
+  static_configs:
+  - targets:
+    - promtail:9080
+
+- job_name: grafana
+  scrape_interval: 5s
+  static_configs:
+  - targets:
+    - grafana:3001
