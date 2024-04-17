@@ -6,8 +6,8 @@ services:
       - '5672:5672'
       - '15672:15672'
       - '15692:15692'
-    expose:
-      - 15692
+    # expose:
+    #   - 15692
     container_name: rabbitmq
     volumes:
       - rabbit-data:/var/lib/rabbitmq
