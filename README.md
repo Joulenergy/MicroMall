@@ -6,6 +6,11 @@ MicroMall is an e-commerce web application utilizing microservice architecture a
 ![Diagram Legend](images/Legend.png)
 ![Architecture Diagram](images/MicroserviceArchitectureDiagram.png)
 
+The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service catalog queue will consume messages that tell it what product information it needs to read from the database. 
+
+The frontend service sends messages to the backend services through the RabbitMQ RPC Pattern, with unique corresponding IDs for it to receive responses. A timeout of 30 seconds is implemented together with error handling for no response being received. The corresponding IDs ensure that the message received by the frontend from the response queue is the intended one due to the asynchronous nature of the replies from the backend, and allows for rejecting of message replies to messages that the frontend is no longer waiting for due to the timeout.
+![RPC Pattern Diagram](images/RPCPattern.png)
+
 ## How to use the application
 ### Running Dockerized :whale:
 ```
@@ -18,6 +23,7 @@ cd MicroMall
 # create nodetini image
 docker build . -t nodetini
 ```
+Tini is used to perform signal forwarding for proper cleanup of my containers on docker-compose down or ctrl C, forwarding the SIGTERM signal and allowing my containers to close connections to RabbitMQ, MongoDB and close my express HTTP servers gracefully.
 
 #### Configurations Needed:
 - Set up a stripe account
@@ -28,7 +34,7 @@ STRIPE_PRIVATE_KEY=<key>
 
 #### Other Possible Configurations:
 - Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
-- Add additional metric scraping jobs to prometheus.yml file
+- Add additional metric or log scraping jobs to prometheus.yml/ promtail.yml files
 - Add additional datasources configurations into datasources.yml file in grafana folder
 - Deploying multiple of the same container:
 ```
@@ -71,15 +77,27 @@ http://localhost:9090
 http://localhost:9090/targets
 ```
 
-#### Testing the stripe integration:
+#### Testing the app with the frontend
+1. Using the admin account, head to http://localhost/3000/createproduct route to create a product. Return to the catalog page. The product should appear
+2. Add it to cart. The cart icon at the top right of the screen should update the number of items in the cart. \
+Note: alerts are given when:
+- More items than stock is attempted to be added to cart
+- Product stock is updated, leading to the cart being updated
+3. Pressing the cart icon at the top right corner will open the cart. Press the 'Check Out' button at the bottom right of the cart, which will check available stocks with the product service and display the products available for purchase, and the total price.
+4. Press the 'Pay Now' button to be redirected to the stripe page.
+
+##### Testing the stripe integration:
 Example Test Cards with any CVV and expiry:
-|NUMBER	|DESCRIPTION|
+|NUMBER|DESCRIPTION|
 |---|---|
 |4242424242424242|  Succeeds and immediately processes the payment.|
 |4000000000003220|  Requires 3D Secure 2 authentication for a successful payment.|
 |4000000000009995|  Always fails with a decline code of insufficient_funds.|
 
 [Stripe Integration Testing with Test Cards](https://docs.stripe.com/testing)
+
+5. Since there is only one shipping option configured for this stripe checkout, it should show $5.00 shipping fee added to the total cost. If the back button on the page is clicked, the session will be closed and the user is redirected back to http://localhost:3000/cancel page.
+6. If payment is completed, the user will be redirected to http://localhost:3000/success, with the OrderId. If there was an error creating an order or time lag in the asynchronous creation of the order, the OrderId may not show, only showing "Thank you for your order!"
 
 ### Configuring RabbitMQ
 This project uses the default vhost '/' and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
@@ -103,6 +121,10 @@ Note: It would be good to create a new container with the rabbitmq:management im
 - MongoDB and MongoDB Compass
 
 ### Monitoring Technologies :chart_with_upwards_trend:
-- cAdvisor
-- Prometheus
-- Grafana
+| Tool | Description |
+| --- | --- |
+| cAdvisor | A daemon that collects, aggregates, processes, and exports information about running containers |
+| Prometheus | Collects metrics via HTTP pull. Stores scraped metrics as time series data and uses PromQL to query metrics |
+| Promtail | Attaches labels to log streams and pushes logs to Loki |
+| Grafana Loki | Collects logs via HTTP push. Designed with scalabiility in mind, it only indexes metadata of logs (labels) and compresses logs into chunks to store them. Uses LogQL to query logs |
+| Grafana | Dashboarding tool to visualise logs and metrics |
