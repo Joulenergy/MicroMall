@@ -8,7 +8,6 @@ const rabbitSettings = {
     vhost: "/",
     authMechanism: ["PLAIN", "AMQPLAIN", "EXTERNAL"],
 };
-let isConnected = false;
 
 const isSocketClosedError = (error) => {
     return error.message === "Socket closed abruptly during opening handshake";
@@ -20,11 +19,9 @@ function connect() {
             try {
                 console.log("Connecting to RabbitMQ...");
                 const conn = await amqp.connect(rabbitSettings);
-                isConnected = true;
                 res(conn);
             } catch (error) {
-                if (isSocketClosedError(error) && !isConnected) {
-                    console.log({isConnected});
+                if (isSocketClosedError(error)) {
                     console.error(
                         `${error.message}. Retrying connection in 20 seconds...`
                     );

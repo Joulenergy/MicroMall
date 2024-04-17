@@ -3,12 +3,11 @@ const rabbitSettings = {
     protocol: "amqp",
     hostname: "host.docker.internal",
     port: 5672,
-    username: "payment",
-    password: "payment",
+    username: `${process.env.RABBIT_USERNAME}`,
+    password: `${process.env.RABBIT_PASSWORD}`,
     vhost: "/",
     authMechanism: ["PLAIN", "AMQPLAIN", "EXTERNAL"],
 };
-let isConnected = false;
 
 const isSocketClosedError = (error) => {
     return error.message === "Socket closed abruptly during opening handshake";
@@ -26,7 +25,6 @@ const connectToRabbitMQ = async () => {
         const conn = await amqp.connect(rabbitSettings);
         data.conn = conn;
         console.log("Connected to RabbitMQ");
-        isConnected = true;
 
         // Create channels
         data.responseChannel = await conn.createChannel();
@@ -36,7 +34,7 @@ const connectToRabbitMQ = async () => {
         data.sendChannel = await conn.createConfirmChannel();
         console.log("Send channel created...");
     } catch (error) {
-        if (isSocketClosedError(error) && !isConnected) {
+        if (isSocketClosedError(error)) {
             console.error(
                 `${error.message}. Retrying connection in 15 seconds...`
             );

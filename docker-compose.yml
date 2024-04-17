@@ -17,9 +17,14 @@ services:
     container_name: frontend-service
     depends_on:
       - rabbitmq
+    environment:
+      - RABBIT_USERNAME=frontend
+      - RABBIT_PASSWORD=frontend
     volumes: # for development
       - ./frontend-service:/app
+      - /app/node_modules
       - ./cleanup.js:/app/cleanup.js
+      - ./rabbitmq/response-rabbitmq.js:/app/rabbitmq.js
     env_file:
       - ./frontend-service/frontend.env
     ports:
@@ -130,12 +135,16 @@ services:
     container_name: payment-service
     depends_on:
       - rabbitmq
+    environment:
+      - RABBIT_USERNAME=payment
+      - RABBIT_PASSWORD=payment
     ports:
       - 8000:8000
     volumes: # for development
         - ./payment-service:/app
         - /app/node_modules
         - ./cleanup.js:/app/cleanup.js
+        - ./rabbitmq/response-rabbitmq.js:/app/rabbitmq.js
     env_file:
       - .env
       - ./payment-service/payment.env

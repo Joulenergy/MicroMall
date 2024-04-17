@@ -2,13 +2,24 @@
 ## About project
 MicroMall is an e-commerce web application utilizing microservice architecture and asynchronous communication with RabbitMQ.
 
-### Architecture diagram
+## Architecture diagram
 ![Diagram Legend](images/Legend.png)
 ![Architecture Diagram](images/MicroserviceArchitectureDiagram.png)
 
-The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service catalog queue will consume messages that tell it what product information it needs to read from the database. 
+## Explaining the RabbitMQ code used
+The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service catalog queue will consume messages that tell it what product information it needs to read from the database, and send a reply to the frontend response queue. These services reuse the useRabbit.js and rabbitmq.js code that is in the rabbitmq folder:
+- The useRabbit file contains two functions - consume() and sendItem() - for consuming messages and sending a reply to the frontend. The consume function has a parameter for defining a fanout exchange and binding the queue with the exchange. The function can be improved to be used for different kinds of exchanges, but for this project only the fanout and default rabbitmq exchanges are used.
+- The rabbitmq file contains the function connect() that returns a promise that resolves with the rabbitmq connection. The connection is retried since on docker-compose up, rabbitmq takes some time to set up. The environment variables I set in the docker-compose file, RABBITMQ_USERNAME and RABBITMQ_PASSWORD, is used here when connecting for easier monitoring of channels and connections in the rabbitmq GUI. Permissions for each user can also be configured, for example here my product user does not have the permission to access the rabbitmq GUI. For more information see the section [Configuring RabbitMQ](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configuring-rabbitmq)
 
-The frontend service sends messages to the backend services through the RabbitMQ RPC Pattern, with unique corresponding IDs for it to receive responses. A timeout of 30 seconds is implemented together with error handling for no response being received. The corresponding IDs ensure that the message received by the frontend from the response queue is the intended one due to the asynchronous nature of the replies from the backend, and allows for rejecting of message replies to messages that the frontend is no longer waiting for due to the timeout.
+The frontend service and payment service use different rabbitmq files from the backend services, as they require responses from other services.
+- The frontend and payment services share a separate rabbitmq.js file, response-rabbitmq.js in the rabbitmq folder. This is allows them to create a response channel and send channel when connected to rabbitmq, compared to the backend services that use multiple channels depending on the number of queues they are connected to with their consume() function.
+- The payment service and frontend service also have different useRabbit files.\
+The frontend service sendItem() function sends messages to the backend services following the RabbitMQ RPC Pattern (see image below), generating unique correlation IDs for it to receive responses by incrementing a counter. \
+On the other hand, the payment service does not send a correlation ID but uses the userId of the response of the cart service to find its corresponding message.\
+Rather than the consume() function, the frontend and payment service have a getResponse() function that waits for a response with a timeout of 30 seconds and error handling for no response being received. \
+Each frontend session has a seperate response queue, with the sessionID as the name. The correlation IDs of incoming messages are checked to ensure that the message received by the frontend from the response queue is the intended one and allows for rejecting of message replies to messages that the frontend is no longer waiting for due to the timeout. \
+On the other hand, the payment service getResponse() function uses one 'payment' queue for replies and requeues messages with different userId from the user initiating the checkout session until it finds the corresponding cart.
+
 ![RPC Pattern Diagram](images/RPCPattern.png)
 
 ## How to use the application
@@ -23,17 +34,19 @@ cd MicroMall
 # create nodetini image
 docker build . -t nodetini
 ```
-Tini is used to perform signal forwarding for proper cleanup of my containers on docker-compose down or ctrl C, forwarding the SIGTERM signal and allowing my containers to close connections to RabbitMQ, MongoDB and close my express HTTP servers gracefully.
+Tini is used to perform signal forwarding for proper cleanup of my containers on docker-compose down or ctrl C, forwarding the SIGTERM signal and allowing my containers to close connections to RabbitMQ, MongoDB and close my express HTTP servers gracefully. This is needed since docker only sends the SIGTERM to PID1, which does not send the signal to my node applications which use npm start -> nodemon -> node. The cleanup code can be found in cleanup.js
 
-#### Configurations Needed:
+### Configurations Needed:
 - Set up a stripe account
 - Create .env file with stripe private key in Micromall directory
 ```
 STRIPE_PRIVATE_KEY=<key>
 ```
+- Edit the docker-compose.yml file with the correct bind mount path to the docker daemon logs depending on the operating system, for example /var/logs for linux, or %LOCALAPPDATA%\Docker\log\vm for windows WSL2. Refer to: https://docs.docker.com/config/daemon/logs/
 
-#### Other Possible Configurations:
+### Other Possible Configurations:
 - Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
+- Change the session secret in frontend.env
 - Add additional metric or log scraping jobs to prometheus.yml/ promtail.yml files
 - Add additional datasources configurations into datasources.yml file in grafana folder
 - Deploying multiple of the same container:
@@ -46,6 +59,7 @@ services:
       mode: replicated
       replicas: 6
 ```
+- The bind mounts of the respective service folders eg. ./frontend-service:/app and /app/node_modules and the npm start with nodemon in the package.json files are for the hot reloading of the services and the ignoring of the local node_modules folder created with npm init (used for for intellisense). These should be removed for production. Note: the bind mount may create empty files for rabbitmq.js and cleanup.js in the folder on docker-compose up.
 
 Finally,
 ```
@@ -75,9 +89,17 @@ http://localhost:8080/docker
 http://localhost:9090
 # to check scraping targets and metrics endpoints
 http://localhost:9090/targets
+
+# For Loki
+http://localhost:3100/metrics 
+# metrics being exposed means it is up
+
+# For Promtail
+http://localhost:9080/targets 
+# to check scraping targets and log endpoints
 ```
 
-#### Testing the app with the frontend
+### Testing the app with the frontend
 1. Using the admin account, head to http://localhost/3000/createproduct route to create a product. Return to the catalog page. The product should appear
 2. Add it to cart. The cart icon at the top right of the screen should update the number of items in the cart. \
 Note: alerts are given when:
@@ -86,7 +108,7 @@ Note: alerts are given when:
 3. Pressing the cart icon at the top right corner will open the cart. Press the 'Check Out' button at the bottom right of the cart, which will check available stocks with the product service and display the products available for purchase, and the total price.
 4. Press the 'Pay Now' button to be redirected to the stripe page.
 
-##### Testing the stripe integration:
+#### Testing the stripe integration:
 Example Test Cards with any CVV and expiry:
 |NUMBER|DESCRIPTION|
 |---|---|
@@ -99,13 +121,13 @@ Example Test Cards with any CVV and expiry:
 5. Since there is only one shipping option configured for this stripe checkout, it should show $5.00 shipping fee added to the total cost. If the back button on the page is clicked, the session will be closed and the user is redirected back to http://localhost:3000/cancel page.
 6. If payment is completed, the user will be redirected to http://localhost:3000/success, with the OrderId. If there was an error creating an order or time lag in the asynchronous creation of the order, the OrderId may not show, only showing "Thank you for your order!"
 
-### Configuring RabbitMQ
+## Configuring RabbitMQ
 This project uses the default vhost '/' and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
 To create vhost and accounts other than the default account which username and password can be configured with environment variables like in my rabbitmq folder dockerfile, create your own definitions.json file. \
 Either hash passwords and configure vhost manually and add in definitions.json file, or create them through the GUI and export the definitions.json file to mount into the container. \
 Edit the vhost and passwords into rabbitmq.js file in each container to use when connecting to rabbitmq and put passwords somewhere secure :closed_lock_with_key: - e.g. in a not committed .env file.
 
-#### Picture Guide to creating accounts
+### Picture Guide to creating accounts
 Note: It would be good to create a new container with the rabbitmq:management image/other rabbitmq images and use it to export the definitions as my container has my own project's accounts configured
 ![Add User](images/AddUser.png)
 ![Vhost Creation](images/VirtualHostCreation.png)
