@@ -5,6 +5,7 @@ services:
     ports:
       - '5672:5672'
       - '15672:15672'
+      - '15692:15692'
     expose:
       - 15692
     container_name: rabbitmq
@@ -150,6 +151,10 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    devices:
+      - /dev/kmsg
     depends_on:
       - rabbitmq
 
