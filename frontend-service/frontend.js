@@ -23,7 +23,6 @@ app.use(
         cookie: { httpOnly: true }, // secure: true is not set since run on localhost
     })
 );
-// TODO: add mongodb session store?
 
 // Ensure user does not access pages without logging in
 app.use((req, res, next) => {
@@ -31,6 +30,7 @@ app.use((req, res, next) => {
         // user has not login yet
         res.redirect("/login");
     } else if (
+        // admin only path - create product
         req.session.type !== "admin" &&
         ["/createproduct"].includes(req.path)
     ) {
@@ -101,92 +101,9 @@ app.use("/", authRouter);
 const cartRouter = require("./routes/cart");
 app.use("/", cartRouter);
 
-app.post("/checkstocks", async (req, res) => {
-    try {
-        // ask cart service to send data
-        sendItem(req, "get-cart", { id: req.session.userId });
-
-        let { cart } = await getResponse(req.sessionID, req.session.corrId);
-        console.log({ cartitems: cart.items });
-
-        if (JSON.stringify(cart) == "{}") {
-            // in case user somehow enters this page with empty cart
-            res.redirect("/");
-        }
-
-        // Get product ids to ask product service for stocks
-        let productIds = [];
-        cart.items.forEach((item) => {
-            productIds.push(item._id);
-        });
-
-        // Ask product service to send data
-        sendItem(req, "catalog", { all: false, productIds });
-
-        // Get response from product service
-        const { products } = await getResponse(
-            req.sessionID,
-            req.session.corrId
-        );
-        console.log({ products });
-
-        let alertmsg;
-        [cart, alertmsg] = await checkstocks(req, products, cart);
-        console.log({ cartitems: cart.items });
-        console.log({ alertmsg });
-
-        res.render("confirm", {
-            sessionid: req.sessionID,
-            name: req.session.name,
-            email: req.session.email,
-            userId: req.session.userId,
-            productitems: products,
-            cartitems: cart.items,
-            alertmsg,
-        });
-    } catch (err) {
-        console.error(`Error checking stocks -> ${err}`);
-        res.send(
-            "Something went wrong loading while checking for available stocks. Please try again later"
-        );
-    }
-});
-
-app.post("/pay", (req, res) => {
-    req.session.payment = true;
-    res.end();
-});
-
-app.get("/success", async (req, res) => {
-    if (req.session.payment) {
-        try {
-            const { orderTime } = await getResponse(req.sessionID);
-            res.send(
-                `<h2>Thank you for your order!</h2><p>OrderId: ${orderTime}</p><a href="/">Back to catalog page</a>`
-            );
-        } catch (err) {
-            res.send("Thank you for your order!");
-            console.error(
-                `OrderId not received by frontend for userId: ${req.session.userId}`
-            );
-        }
-        // TODO: view all orders page
-        req.session.payment = false;
-    } else {
-        res.redirect("/");
-    }
-});
-
-app.get("/cancel", (req, res) => {
-    if (req.session.payment) {
-        res.send(
-            '<h2>Need more time to browse your cart?</h2><a href="/">Back to catalog page</a>'
-        );
-        req.session.payment = false;
-    } else {
-        res.redirect("/");
-    }
-});
+// Payment router
+const payRouter = require("./routes/payment");
+app.use("/", payRouter);
 
 const server = app.listen(
     3000,
