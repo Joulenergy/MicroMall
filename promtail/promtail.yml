@@ -58,8 +58,6 @@ scrape_configs:
             - pack:
                 labels:
                   - msg
-                  - logger
-                  - level
       - match:
           selector: '{container=~"prometheus|promtail"}'
           stages:
@@ -80,8 +78,6 @@ scrape_configs:
             - pack:
                 labels:
                   - msg
-                  - caller
-                  - level
       - match:
           selector: '{container=~"loki"}'
           stages:
@@ -110,8 +106,6 @@ scrape_configs:
                   - query
                   - query_hash
                   - msg
-                  - caller
-                  - level
       - match:
           selector: '{container=~"rabbitmq"}'
           stages:
