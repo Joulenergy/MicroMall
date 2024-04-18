@@ -1,3 +1,4 @@
 **/node_modules
 .env
 **/payment.env
+**/package-lock.json
