@@ -1,43 +1,32 @@
+global:
+  scrape_interval: 5s
+
 scrape_configs:
 - job_name: docker
   # metrics_path defaults to '/metrics'
-  scrape_interval: 5s
   static_configs:
     - targets: 
       - 'host.docker.internal:9323'
-
-- job_name: prometheus
-  scrape_interval: 5s
-  static_configs: 
-    - targets: 
-      - prometheus:9090 
-
-- job_name: cadvisor
-  scrape_interval: 5s
-  static_configs:
-  - targets:
-    - cadvisor:8080
-
+      
 - job_name: rabbitmq
   scrape_interval: 5s
   static_configs:
   - targets:
     - rabbitmq:15692
 
-- job_name: loki
-  scrape_interval: 5s
-  static_configs:
-  - targets:
-    - loki:3100
-
-- job_name: promtail
-  scrape_interval: 5s
-  static_configs:
-  - targets:
-    - promtail:9080
-
-- job_name: grafana
-  scrape_interval: 5s
-  static_configs:
-  - targets:
-    - grafana:3001
+- job_name: dockersdconfig
+  docker_sd_configs: # This SD discovers "containers" and will create a target for each network IP and port the container is configured to expose.
+    - host: unix:///var/run/docker.sock
+      filters:
+      - name: name
+        values: 
+          - /prometheus
+          - /cadvisor
+          - /loki
+          - /promtail
+          - /grafana
+      refresh_interval: 30s  
+  relabel_configs:
+    - source_labels: ['__meta_docker_container_name']
+      regex: '/(.*)' # removes leading / from container name
+      target_label: 'job'
