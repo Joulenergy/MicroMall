@@ -3,13 +3,6 @@
 MicroMall is an e-commerce web application utilizing microservice architecture and asynchronous communication with RabbitMQ.
 ![Catalog Page of MicroMall](images/Frontend.png)
 
-## Architecture diagram
-![Diagram Legend](images/Legend.png)
-![Architecture Diagram](images/MicroserviceArchitectureDiagram.png)
-This diagram is colour coded (each service has a different colour). The service and the queues that are related to its functionalities e.g. cart-service and change-cart queue, are the same colour.\
-Note: The RabbitMQ port shown in the diagram is 15672 for the GUI, since this project uses the RabbitMQ management tag image which has rabbitmq management plugin installed and enabled by default. It also exposes two more ports 5672 for AMQP communication and 15692 for its metrics because of the rabbitmq-prometheus plugin being enabled. \
-Other ports that are exposed in my project is port 9323 for docker daemon metrics. See [Configurations Needed](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configurations-needed)
-
 ## Technologies used :mag_right:
 - Node.js
 - Express.js
@@ -27,8 +20,15 @@ Other ports that are exposed in my project is port 9323 for docker daemon metric
 | Grafana Loki | Collects logs via HTTP push. Designed with scalabiility in mind, it only indexes metadata of logs (labels) and compresses logs into chunks to store them. Uses LogQL to query logs |
 | Grafana | Dashboarding tool to visualise logs and metrics |
 
+## Architecture diagram
+![Diagram Legend](images/Legend.png)
+![Architecture Diagram](images/MicroserviceArchitectureDiagram.png)
+This diagram is colour coded (each service has a different colour). The service and the queues that are related to its functionalities e.g. cart-service and change-cart queue, are the same colour. The arrows represent messages being published to queues and the circles mean consuming from. For example, the frontend service sends a message to the login queue, which the auth service consumes from and then sends a reply message to the response queue of the frontend service which it consumes from.\
+Note: The RabbitMQ port shown in the diagram is 15672 for the GUI, since this project uses the RabbitMQ management tag image which has rabbitmq management plugin installed and enabled by default. It also exposes two more ports 5672 for AMQP communication and 15692 for its metrics because of the rabbitmq-prometheus plugin being enabled. \
+Other ports that are exposed in my project is port 9323 for docker daemon metrics. See [Configurations Needed](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configurations-needed) for configuring the docker daemon to release metrics.
+
 ## Explaining the RabbitMQ code used
-The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service catalog queue will consume messages that tell it what product information it needs to read from the database, and send a reply to the frontend response queue. These services reuse the useRabbit.js and rabbitmq.js code that is in the rabbitmq folder:
+The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service consumes from the change-product queue for messages that require updating product stocks and the catalog queue that tell it what product information it needs to read from the database, and send a reply to the frontend response queue. These services reuse the useRabbit.js and rabbitmq.js code that is in the rabbitmq folder:
 - The useRabbit.js file contains two functions - consume() and sendItem() - for consuming messages and sending a reply to the frontend. The consume function has a parameter for defining a fanout exchange and binding the queue with the exchange. The function can be improved to be used for different kinds of exchanges, but for this project only the fanout and default rabbitmq exchanges are used. Most of the services use the default exchange, where the frontend send the message with the same routing and binding key as the queue name. See https://www.rabbitmq.com/tutorials/amqp-concepts for more information on rabbitmq exchanges and other concepts.
 - The rabbitmq.js file contains the function connect() that returns a promise that resolves with the rabbitmq connection. The connection is retried since on docker-compose up, rabbitmq takes some time to set up. The environment variables I set in the docker-compose file for each service, RABBITMQ_USERNAME and RABBITMQ_PASSWORD, is used here when connecting. Having seperate accounts allows for easier monitoring of channels and connections in the rabbitmq GUI. Permissions for each user can also be configured, for example my product service user does not have the permission to access the rabbitmq GUI, and can only access the virtual host '/'. For more information see the section [Configuring RabbitMQ](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configuring-rabbitmq)
 
@@ -80,23 +80,6 @@ My daemon file after editing it:
   "metrics-addr": "127.0.0.1:9323"
 }
 ```
-
-### Other Possible Configurations
-- Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
-- Change the session secret in frontend.env
-- Add additional metric or log scraping jobs to prometheus.yml/ promtail.yml files
-- Add additional datasources configurations into datasources.yml file in grafana folder
-- Deploying multiple of the same container:
-```
-# example
-services:
-  myapp:
-    image: awesome/webapp
-    deploy:
-      mode: replicated
-      replicas: 6
-```
-- The bind mounts of the respective service folders eg. ./frontend-service:/app and /app/node_modules and the npm start with nodemon in the package.json files are for the hot reloading of the services and the ignoring of the local node_modules folder created with npm init (used for for intellisense). These should be removed for production. Note: the bind mount may create empty files for rabbitmq.js and cleanup.js in the folder on docker-compose up.
 
 Finally,
 ```
@@ -162,13 +145,44 @@ Example Test Cards with any CVV and expiry:
 5. Since there is only one shipping option configured for this stripe checkout, it should show $5.00 shipping fee added to the total cost. If the back button on the page is clicked, the session will be closed and the user is redirected back to http://localhost:3000/cancel page.
 6. If payment is completed, the user will be redirected to http://localhost:3000/success, with the OrderId. If there was an error creating an order or time lag in the asynchronous creation of the order, the OrderId may not show, only showing "Thank you for your order!"
 
-## Configuring RabbitMQ
+### Testing the app with the RabbitMQ GUI
+There are some functionalities such as the refund and get-orders queue which do not currently have a frontend component made to test them. They can be tested through the RabbitMQ management GUI. 
+
+![Click the queue you want to test](images/TestQueue.png)
+-
+Under the publish message section, send a message to the queue
+
+![Publish Message Section](images/PublishMessage.png)
+- 
+Other queue actions include getting messages (reject, ack and requeue possible), moving messages and deleting the queue, or purging the queue (deleting all messages in the queue)
+
+![Other Queue Actions](images/OtherQueueActions.png)
+
+## Other Possible Configurations
+- Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
+- Change the session secret in frontend.env
+- Add additional metric or log scraping jobs to prometheus.yml/ promtail.yml files
+- Add additional datasources configurations into datasources.yml file in grafana folder
+- Deploying multiple of the same container:
+```
+# example
+services:
+  myapp:
+    image: awesome/webapp
+    deploy:
+      mode: replicated
+      replicas: 6
+```
+- The bind mounts of the respective service folders eg. ./frontend-service:/app and /app/node_modules and the npm start with nodemon in the package.json files are for the hot reloading of the services and the ignoring of the local node_modules folder created with npm init (used for for intellisense). These should be removed for production. Note: the bind mount may create empty files for rabbitmq.js and cleanup.js in the folder on docker-compose up.
+
+### Configuring RabbitMQ
 This project uses the default vhost '/' (virtual host) and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
 To create vhosts and accounts - other than the default account which username and password can be configured with environment variables like in my rabbitmq folder dockerfile - create your own definitions.json file. \
 Either hash passwords and configure vhost manually by writing your own definitions.json file, or create and export them through the GUI to mount into the container. \
 Edit the vhost and passwords into rabbitmq.js file in each container to use when connecting to rabbitmq and put passwords somewhere secure :closed_lock_with_key: - e.g. in a not committed .env file.
+It is also possible to define the queues and exchanges needed in the configuration file such that they are set up on container build rather than creating them in the code for queues and exchanges that are always used.
 
-### Picture Guide to creating accounts
+#### Picture Guide to creating accounts and exporting definitions.json file
 Note: It would be good to create a new container with the rabbitmq:management image and use it to export the definitions as my container has my own project's accounts configured. Make sure to use a consistent version of rabbitmq as there are many management images available. Refer to: https://hub.docker.com/_/rabbitmq
 
 ![Add User](images/AddUser.png)
@@ -179,8 +193,8 @@ Note: It would be good to create a new container with the rabbitmq:management im
  -
 ![Export Definitions.json file](images/ExportDefinitionsJsonFile.png)
 
-## Configuring the Monitoring Technologies
-### Prometheus
+### Configuring the Monitoring Technologies
+#### Prometheus
 The prometheus in this project uses the prometheus.yml file to configure scraping of targets. The file is loaded with the --config.file flag. \
 The retention time for the local storage can be configured in the docker-compose file command --storage.tsdb.retention.time. For other storage configurations, refer to https://prometheus.io/docs/prometheus/latest/storage/#operational-aspects.
 
@@ -217,3 +231,10 @@ docker_sd_configs allows for the dynamic discovery of metric endpoints of docker
 ```
 static_config is used for rabbitmq since docker_sd_config will create a target for every port your containers are configured to expose, and rabbitmq is configured to expose many ports, resulting in prometheus attempting to scrape from the other ports and causing error messages from rabbitmq. Alternatively, the relabel_config can be used to drop targets which target the ports which do not need to be scraped together (allowing for the dynamic service discovery to be used instead of static configuration).\
 Note that 'filters' is used in the configuration file but it can only filter which containers that are scraped and cannot limit the ports that are scraped from so relabel_configs is preferred for more complex filtering. Refer to https://docs.docker.com/engine/api/v1.40/#tag/Container/operation/ContainerList for the list of filters that can be used. Only containers that match the filter condition eg. name = /loki will be scraped from. If unsure of the values of some of the filters, checking the prometheus target list at http://localhost:9080/targets, there is a labels column which can be expanded to show discovered labels and their values. 
+
+#### Promtail
+Promtail in this project uses the promtail.yml file to configure scraping containers and the docker daemon for logs and for relabelling the logs. The file is loaded with the -config.file flag (note only one '-'). Refer to https://grafana.com/docs/loki/v2.8.x/clients/promtail/configuration/ for how to write the config yaml file for various log sources.
+
+Promtail pipeline stages can be used to process the log lines and extract metrics and lables. There are four types of stages, parsing, transform, action and filtering. More information can be found here: https://grafana.com/docs/loki/v2.8.x/clients/promtail/pipelines/ and a summary of all the stages can be found here: https://grafana.com/docs/loki/v2.8.x/clients/promtail/stages/
+
+Note: my project uses the latest tag for the docker images of loki and promtail but it is not the latest version of Grafana Loki - the latest version is v-3.0.x, but the documentation I have linked is for v-2.8.x. However since the official docker images may be updated, the version info can be checked in my grafana dashboard that monitors loki and promtail or by searching promtail_build_info or loki_build_info in prometheus.
