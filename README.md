@@ -1,10 +1,12 @@
 # MicroMall :department_store:
 ## About project
 MicroMall is an e-commerce web application utilizing microservice architecture and asynchronous communication with RabbitMQ.
+![Catalog Page of MicroMall](images/Frontend.png)
 
 ## Architecture diagram
 ![Diagram Legend](images/Legend.png)
 ![Architecture Diagram](images/MicroserviceArchitectureDiagram.png)
+This diagram is colour coded (each service has a different colour). The service and the queues that are related to its functionalities e.g. cart-service and change-cart queue, are the same colour.\
 Note: The RabbitMQ port shown in the diagram is 15672 for the GUI, since this project uses the RabbitMQ management tag image which has rabbitmq management plugin installed and enabled by default. It also exposes two more ports 5672 for AMQP communication and 15692 for its metrics because of the rabbitmq-prometheus plugin being enabled. \
 Other ports that are exposed in my project is port 9323 for docker daemon metrics. See [Configurations Needed](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configurations-needed)
 
@@ -27,8 +29,8 @@ Other ports that are exposed in my project is port 9323 for docker daemon metric
 
 ## Explaining the RabbitMQ code used
 The backend services, cart, auth, product and order consume from various queues for seperate functions. For example, the product service catalog queue will consume messages that tell it what product information it needs to read from the database, and send a reply to the frontend response queue. These services reuse the useRabbit.js and rabbitmq.js code that is in the rabbitmq folder:
-- The useRabbit file contains two functions - consume() and sendItem() - for consuming messages and sending a reply to the frontend. The consume function has a parameter for defining a fanout exchange and binding the queue with the exchange. The function can be improved to be used for different kinds of exchanges, but for this project only the fanout and default rabbitmq exchanges are used.
-- The rabbitmq file contains the function connect() that returns a promise that resolves with the rabbitmq connection. The connection is retried since on docker-compose up, rabbitmq takes some time to set up. The environment variables I set in the docker-compose file, RABBITMQ_USERNAME and RABBITMQ_PASSWORD, is used here when connecting for easier monitoring of channels and connections in the rabbitmq GUI. Permissions for each user can also be configured, for example here my product user does not have the permission to access the rabbitmq GUI. For more information see the section [Configuring RabbitMQ](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configuring-rabbitmq)
+- The useRabbit.js file contains two functions - consume() and sendItem() - for consuming messages and sending a reply to the frontend. The consume function has a parameter for defining a fanout exchange and binding the queue with the exchange. The function can be improved to be used for different kinds of exchanges, but for this project only the fanout and default rabbitmq exchanges are used. Most of the services use the default exchange, where the frontend send the message with the same routing and binding key as the queue name. See https://www.rabbitmq.com/tutorials/amqp-concepts for more information on rabbitmq exchanges and other concepts.
+- The rabbitmq.js file contains the function connect() that returns a promise that resolves with the rabbitmq connection. The connection is retried since on docker-compose up, rabbitmq takes some time to set up. The environment variables I set in the docker-compose file for each service, RABBITMQ_USERNAME and RABBITMQ_PASSWORD, is used here when connecting. Having seperate accounts allows for easier monitoring of channels and connections in the rabbitmq GUI. Permissions for each user can also be configured, for example my product service user does not have the permission to access the rabbitmq GUI, and can only access the virtual host '/'. For more information see the section [Configuring RabbitMQ](https://github.com/Joulenergy/MicroMall/tree/main?tab=readme-ov-file#configuring-rabbitmq)
 
 The frontend service and payment service use different rabbitmq files from the backend services, as they require responses from other services.
 - The frontend and payment services share a separate rabbitmq.js file, response-rabbitmq.js in the rabbitmq folder. This is allows them to create a response channel and send channel when connected to rabbitmq, compared to the backend services that use multiple channels depending on the number of queues they are connected to with their consume() function.
@@ -40,6 +42,8 @@ Each frontend session has a seperate response queue, with the sessionID as the n
 On the other hand, the payment service getResponse() function uses one 'payment' queue for replies and requeues messages with different userId from the user initiating the checkout session until it finds the corresponding cart.
 
 ![RPC Pattern Diagram](images/RPCPattern.png)
+
+This is a useful youtube playlist for learning RabbitMQ that covers many parts of the documentation in video format: [RabbitMQ Tutorial Playlist](https://youtube.com/playlist?list=PLalrWAGybpB-UHbRDhFsBgXJM1g6T4IvO&si=CynlhZlARrUxKFkm)
 
 ## How to use the application
 ### Running Dockerized :whale:
@@ -96,8 +100,11 @@ services:
 
 Finally,
 ```
-# build the images and run the containers
+# build the images and run the containers:
 docker-compose up
+
+# stop and delete all running containers:
+docker-compose down
 ```
 Navigate to these pages on your browser:
 ```
@@ -131,7 +138,7 @@ http://localhost:3100/metrics
 http://localhost:9080/targets 
 # to check scraping targets for logs
 ```
-Go to the /metrics route to see the metrics being exposed. Eg. http://localhost:15692/metrics for RabbitMQ (Note: if not interested in seeing the RabbitMQ metrics, edit the docker compose file to remove the exposed port 15692 for rabbitmq and uncomment the expose 15692 code)
+Go to the /metrics route to see the metrics being exposed. In prometheus /targets route, the service names or IP addresses are used in the links Eg. http://rabbitmq:15692/metrics where docker will replace 'rabbitmq' with the IP address of the container in the network. To view the metrics, simply replace the service name or IP address with localhost as the docker-compose file exposes the metrics ports. http://localhost:15692/metrics for RabbitMQ (Note: if not interested in seeing the RabbitMQ metrics on localhost, edit the docker compose file to remove the port 15692 for rabbitmq and uncomment the expose 15692 code)
 
 ### Testing the app with the frontend
 1. Using the admin account, head to http://localhost/3000/createproduct route to create a product. Return to the catalog page. The product should appear
@@ -156,14 +163,57 @@ Example Test Cards with any CVV and expiry:
 6. If payment is completed, the user will be redirected to http://localhost:3000/success, with the OrderId. If there was an error creating an order or time lag in the asynchronous creation of the order, the OrderId may not show, only showing "Thank you for your order!"
 
 ## Configuring RabbitMQ
-This project uses the default vhost '/' and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
-To create vhost and accounts other than the default account which username and password can be configured with environment variables like in my rabbitmq folder dockerfile, create your own definitions.json file. \
-Either hash passwords and configure vhost manually and add in definitions.json file, or create them through the GUI and export the definitions.json file to mount into the container. \
+This project uses the default vhost '/' (virtual host) and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
+To create vhosts and accounts - other than the default account which username and password can be configured with environment variables like in my rabbitmq folder dockerfile - create your own definitions.json file. \
+Either hash passwords and configure vhost manually by writing your own definitions.json file, or create and export them through the GUI to mount into the container. \
 Edit the vhost and passwords into rabbitmq.js file in each container to use when connecting to rabbitmq and put passwords somewhere secure :closed_lock_with_key: - e.g. in a not committed .env file.
 
 ### Picture Guide to creating accounts
 Note: It would be good to create a new container with the rabbitmq:management image and use it to export the definitions as my container has my own project's accounts configured. Make sure to use a consistent version of rabbitmq as there are many management images available. Refer to: https://hub.docker.com/_/rabbitmq
+
 ![Add User](images/AddUser.png)
+ -
 ![Vhost Creation](images/VirtualHostCreation.png)
+ -
 ![Vhost Set Permissions](images/VhostSetPermissions.png)
+ -
 ![Export Definitions.json file](images/ExportDefinitionsJsonFile.png)
+
+## Configuring the Monitoring Technologies
+### Prometheus
+The prometheus in this project uses the prometheus.yml file to configure scraping of targets. The file is loaded with the --config.file flag. \
+The retention time for the local storage can be configured in the docker-compose file command --storage.tsdb.retention.time. For other storage configurations, refer to https://prometheus.io/docs/prometheus/latest/storage/#operational-aspects.
+
+For writing the configuration file, refer to: https://prometheus.io/docs/prometheus/latest/configuration/configuration/. This project uses scrape_configs, relabel_configs, static_configs and docker_sd_configs to specify and modify the labels of scraped targets. Other configurations like dockerswarm_sd_config or kubernetes_sd_config can be used to dynamically discover services for other use cases. Note even though the headings for the sections do not have the ending 's', the 's' is needed in the yaml file.
+
+docker_sd_configs allows for the dynamic discovery of metric endpoints of docker containers running in the docker daemon. In this project, user: root permission in the docker-compose.yaml file is given to prometheus since it would give an error of not having permission when using the docker socket for service discovery. If this poses security concerns, there are other solutions such as using a [docker socat proxy](https://github.com/prometheus/prometheus/discussions/9640). It is also possible to manually configure the endpoints to scrape from:
+```
+- job_name: prometheus
+  metrics_path: /metrics # /metrics is the default, change if needed
+  static_configs: 
+    - targets: 
+      - prometheus:9090 
+
+- job_name: cadvisor
+  static_configs:
+  - targets:
+    - cadvisor:8080
+
+- job_name: loki
+  static_configs:
+  - targets:
+    - loki:3100
+
+- job_name: promtail
+  static_configs:
+  - targets:
+    - promtail:9080
+
+- job_name: grafana
+  static_configs:
+  - targets:
+    - grafana:3001
+
+```
+static_config is used for rabbitmq since docker_sd_config will create a target for every port your containers are configured to expose, and rabbitmq is configured to expose many ports, resulting in prometheus attempting to scrape from the other ports and causing error messages from rabbitmq. Alternatively, the relabel_config can be used to drop targets which target the ports which do not need to be scraped together (allowing for the dynamic service discovery to be used instead of static configuration).\
+Note that 'filters' is used in the configuration file but it can only filter which containers that are scraped and cannot limit the ports that are scraped from so relabel_configs is preferred for more complex filtering. Refer to https://docs.docker.com/engine/api/v1.40/#tag/Container/operation/ContainerList for the list of filters that can be used. Only containers that match the filter condition eg. name = /loki will be scraped from. If unsure of the values of some of the filters, checking the prometheus target list at http://localhost:9080/targets, there is a labels column which can be expanded to show discovered labels and their values. 
