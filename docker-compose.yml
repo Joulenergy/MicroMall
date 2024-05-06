@@ -20,11 +20,12 @@ services:
     environment:
       - RABBIT_USERNAME=frontend
       - RABBIT_PASSWORD=frontend
-    volumes: # for development
-      - ./frontend-service:/app
-      - /app/node_modules
+    volumes: 
       - ./cleanup.js:/app/cleanup.js
       - ./rabbitmq/response-rabbitmq.js:/app/rabbitmq.js
+      # for development
+      - ./frontend-service:/app
+      - /app/node_modules
     env_file:
       - ./frontend-service/frontend.env
     ports:
@@ -47,12 +48,14 @@ services:
     environment:
       - RABBIT_USERNAME=auth
       - RABBIT_PASSWORD=auth
-    volumes: # for development
-      - ./auth-service:/app
-      - /app/node_modules
+    volumes: 
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
       - ./cleanup.js:/app/cleanup.js
+      - ./mongo.js:/app/mongo.js
+      # for development
+      - ./auth-service:/app
+      - /app/node_modules
 
   product-mongo:
     image: mongo
@@ -71,12 +74,14 @@ services:
     environment:
       - RABBIT_USERNAME=product
       - RABBIT_PASSWORD=product
-    volumes: # for development
-      - ./product-service:/app
-      - /app/node_modules
+    volumes: 
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
       - ./cleanup.js:/app/cleanup.js
+      - ./mongo.js:/app/mongo.js
+      # for development
+      - ./product-service:/app
+      - /app/node_modules
     env_file:
       - .env
 
@@ -97,12 +102,14 @@ services:
     environment:
       - RABBIT_USERNAME=cart
       - RABBIT_PASSWORD=cart
-    volumes: # for development
-      - ./cart-service:/app
-      - /app/node_modules
+    volumes: 
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
       - ./cleanup.js:/app/cleanup.js
+      - ./mongo.js:/app/mongo.js
+      # for development
+      - ./cart-service:/app
+      - /app/node_modules
 
   order-mongo:
     image: mongo
@@ -121,12 +128,14 @@ services:
     environment:
       - RABBIT_USERNAME=order
       - RABBIT_PASSWORD=order
-    volumes: # for development
-      - ./order-service:/app
-      - /app/node_modules
+    volumes: 
       - ./rabbitmq/useRabbit.js:/app/useRabbit.js
       - ./rabbitmq/rabbitmq.js:/app/rabbitmq.js
       - ./cleanup.js:/app/cleanup.js
+      - ./mongo.js:/app/mongo.js
+      # for development
+      - ./order-service:/app
+      - /app/node_modules
     env_file:
       - .env
 
@@ -140,11 +149,12 @@ services:
       - RABBIT_PASSWORD=payment
     ports:
       - 8000:8000
-    volumes: # for development
-        - ./payment-service:/app
-        - /app/node_modules
-        - ./cleanup.js:/app/cleanup.js
-        - ./rabbitmq/response-rabbitmq.js:/app/rabbitmq.js
+    volumes: 
+      - ./cleanup.js:/app/cleanup.js
+      - ./rabbitmq/response-rabbitmq.js:/app/rabbitmq.js
+      # for development
+      - ./payment-service:/app
+      - /app/node_modules
     env_file:
       - .env
       - ./payment-service/payment.env

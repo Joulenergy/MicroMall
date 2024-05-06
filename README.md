@@ -162,7 +162,7 @@ Other queue actions include getting messages (reject, ack and requeue possible),
 - Change the default passwords of rabbitmq (in dockerfile currently) and grafana (in docker-compose file currently) and put them in a secure location :closed_lock_with_key: e.g. not committed .env files
 - Change the session secret in frontend.env
 - Add additional metric or log scraping jobs to prometheus.yml/ promtail.yml files
-- Add additional datasources configurations into datasources.yml file in grafana folder
+- Add additional datasources configurations into datasources.yml file in grafana folder and mount new dashboard json files
 - Deploying multiple of the same container:
 ```
 # example
@@ -173,7 +173,7 @@ services:
       mode: replicated
       replicas: 6
 ```
-- The bind mounts of the respective service folders eg. ./frontend-service:/app and /app/node_modules and the npm start with nodemon in the package.json files are for the hot reloading of the services and the ignoring of the local node_modules folder created with npm init (used for for intellisense). These should be removed for production. Note: the bind mount may create empty files for rabbitmq.js and cleanup.js in the folder on docker-compose up.
+- The bind mounts of the respective service folders eg. ./frontend-service:/app and /app/node_modules and the npm start with nodemon in the package.json files are for the hot reloading of the services and the ignoring of the local node_modules folder created with npm init (used for for intellisense). These should be removed for production. Note: the bind mount may create empty files for rabbitmq.js and cleanup.js in the folder on docker-compose up, which is ignored by the .gitignore file
 
 ### Configuring RabbitMQ
 This project uses the default vhost '/' (virtual host) and has created its own seperate accounts for each microservice which allows for easier monitoring of channels and connections on the rabbitmq gui.\
