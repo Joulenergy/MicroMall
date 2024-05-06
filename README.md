@@ -45,6 +45,8 @@ On the other hand, the payment service getResponse() function uses one 'payment'
 
 This is a useful youtube playlist for learning RabbitMQ that covers many parts of the documentation in video format: [RabbitMQ Tutorial Playlist](https://youtube.com/playlist?list=PLalrWAGybpB-UHbRDhFsBgXJM1g6T4IvO&si=CynlhZlARrUxKFkm)
 
+Note: The frontend service uses RabbitMQ channel.get() to check for messages from the response queue regularly but I found out later on that using channel.get() is resource intensive and thus channel.consume() is preferred. Refer to https://www.cloudamqp.com/blog/rabbitmq-basic-consume-vs-rabbitmq-basic-get.html for more information. Using channel.consume() and storing the messages in a list may be a better idea, with timeouts to check the queue for replies.
+
 ## How to use the application
 ### Running Dockerized :whale:
 ```
