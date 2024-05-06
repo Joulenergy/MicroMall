@@ -38,7 +38,7 @@ The frontend service and payment service use different rabbitmq files from the b
 The frontend service sendItem() function sends messages to the backend services following the RabbitMQ RPC Pattern (see image below), generating unique correlation IDs for it to receive responses by incrementing a counter. \
 On the other hand, the payment service does not send a correlation ID but uses the userId of the response of the cart service to find its corresponding message.\
 Rather than the consume() function, the frontend and payment service have a getResponse() function that waits for a response with a timeout of 30 seconds and error handling for no response being received. \
-Each frontend session has a seperate response queue, with the sessionID as the name. The correlation IDs of incoming messages are checked to ensure that the message received by the frontend from the response queue is the intended one and allows for rejecting of message replies to messages that the frontend is no longer waiting for due to the timeout. \
+Each frontend session has a seperate response queue, with the sessionID as the name. The correlation IDs of incoming messages are checked to ensure that the message received by the frontend from the response queue is the intended one and allows for rejecting of message replies to messages that the frontend is no longer waiting for due to the timeout. (Note: this may be inefficient for a large number of users so it may be possible to combine it into one response queue and nack and requeue messages that are not corresponding to the sessionID or correlationID)\
 On the other hand, the payment service getResponse() function uses one 'payment' queue for replies and requeues messages with different userId from the user initiating the checkout session until it finds the corresponding cart.
 
 ![RPC Pattern Diagram](images/RPCPattern.png)
@@ -200,7 +200,7 @@ The retention time for the local storage can be configured in the docker-compose
 
 For writing the configuration file, refer to: https://prometheus.io/docs/prometheus/latest/configuration/configuration/. This project uses scrape_configs, relabel_configs, static_configs and docker_sd_configs to specify and modify the labels of scraped targets. Other configurations like dockerswarm_sd_config or kubernetes_sd_config can be used to dynamically discover services for other use cases. Note even though the headings for the sections do not have the ending 's', the 's' is needed in the yaml file.
 
-docker_sd_configs allows for the dynamic discovery of metric endpoints of docker containers running in the docker daemon. In this project, user: root permission in the docker-compose.yaml file is given to prometheus since it would give an error of not having permission when using the docker socket for service discovery. If this poses security concerns, there are other solutions such as using a [docker socat proxy](https://github.com/prometheus/prometheus/discussions/9640). It is also possible to manually configure the endpoints to scrape from:
+docker_sd_configs allows for the dynamic discovery of metric endpoints of docker containers running in the docker daemon. In this project, user: root permission in the docker-compose.yaml file is given to prometheus since it would give an error of not having permission when using the docker socket for service discovery. If this poses security concerns, there are other solutions such as using a [docker socat proxy](https://github.com/prometheus/prometheus/discussions/9640). It is also possible to manually configure the endpoints to scrape from with static configurations:
 ```
 - job_name: prometheus
   metrics_path: /metrics # /metrics is the default, change if needed
@@ -229,8 +229,32 @@ docker_sd_configs allows for the dynamic discovery of metric endpoints of docker
     - grafana:3001
 
 ```
-static_config is used for rabbitmq since docker_sd_config will create a target for every port your containers are configured to expose, and rabbitmq is configured to expose many ports, resulting in prometheus attempting to scrape from the other ports and causing error messages from rabbitmq. Alternatively, the relabel_config can be used to drop targets which target the ports which do not need to be scraped together (allowing for the dynamic service discovery to be used instead of static configuration).\
+static_config is used for rabbitmq since docker_sd_config will create a target for every port your containers are configured to expose, and rabbitmq is configured to expose many ports, resulting in prometheus attempting to scrape from the other ports and causing error messages from rabbitmq. static config can also be useful when the endpoint needs to always be up and does not require dynamic service discovery, as it will show that the endpoint is down when the container is deleted with information like its last scrape.
+Alternatively, the relabel_config can be used to drop targets which target the ports which do not need to be scraped together (allowing for the dynamic service discovery to be used instead of static configuration).\
 Note that 'filters' is used in the configuration file but it can only filter which containers that are scraped and cannot limit the ports that are scraped from so relabel_configs is preferred for more complex filtering. Refer to https://docs.docker.com/engine/api/v1.40/#tag/Container/operation/ContainerList for the list of filters that can be used. Only containers that match the filter condition eg. name = /loki will be scraped from. If unsure of the values of some of the filters, checking the prometheus target list at http://localhost:9080/targets, there is a labels column which can be expanded to show discovered labels and their values. 
+Example with relabel config:
+```
+- job_name: dockersdconfig
+  docker_sd_configs: 
+    - host: unix:///var/run/docker.sock
+      refresh_interval: 30s  
+      
+  relabel_configs:
+    - source_labels: ['__meta_docker_container_name']
+      regex: '.*-mongo|.*-service'
+      action: drop
+
+    - source_labels: ['__meta_docker_container_name', '__meta_docker_port_public']
+      regex: '/rabbitmq;15692|/[^r]{1}.*;\d*' 
+      action: keep
+      # keeps only rabbitmq with a specific port and any service that does not start with 'r' and any port
+      # done this way since there is no negative lookahead with RE2 that is used for prometheus
+
+    - source_labels: ['__meta_docker_container_name']
+      regex: '/(.*)' # removes leading / from container name
+      target_label: 'job'
+```
+As the documentation can be quite confused, I used https://training.promlabs.com/trainings which has some free training with example code that is useful to reference!
 
 #### Promtail
 Promtail in this project uses the promtail.yml file to configure scraping containers and the docker daemon for logs and for relabelling the logs. The file is loaded with the -config.file flag (note only one '-'). Refer to https://grafana.com/docs/loki/v2.8.x/clients/promtail/configuration/ for how to write the config yaml file for various log sources.
