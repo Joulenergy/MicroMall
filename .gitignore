@@ -2,3 +2,9 @@
 .env
 **/payment.env
 **/package-lock.json
+**/rabbitmq.js
+**/useRabbit.js
+**/cleanup.js
+!frontend-service/useRabbit.js
+!payment-service/useRabbit.js
+!rabbitmq/**
