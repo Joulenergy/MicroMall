@@ -5,6 +5,7 @@
 **/rabbitmq.js
 **/useRabbit.js
 **/cleanup.js
+**/mongo.js
 !frontend-service/useRabbit.js
 !payment-service/useRabbit.js
 !rabbitmq/**

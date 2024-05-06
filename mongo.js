@@ -6,7 +6,9 @@ const mongoose = require("mongoose");
 async function connect(){
     // ${process.env.RABBIT_USERNAME}-mongo will give eg. product-mongo, which is the mongodb service name
     // docker will replace the service name with its IP address allowing for connection
-    return await mongoose.connect(`mongodb://${process.env.RABBIT_USERNAME}-mongo:27017/users`);
+    const service = process.env.RABBIT_USERNAME
+    const dbPath = {"auth":"users", "cart":"carts", "order":"orders", "product":"products"}
+    return await mongoose.connect(`mongodb://${service}-mongo:27017/${dbPath[service]}`);
 }
 
 module.exports = {
