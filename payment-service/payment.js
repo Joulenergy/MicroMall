@@ -71,39 +71,33 @@ setupWebhookEndpoint();
 app.post("/create-checkout-session", async (req, res) => {
     try {
         const { sessionid, userId, name, email } = req.body;
-
-        console.log({ sessionid });
-        console.log({ userId });
-        console.log({ email });
-        console.log({ name });
+        console.log(`Customer ${userId} ${name} has entered checkout`);
 
         // Retrieve the customer by email
         let customer = await stripe.customers.list({ email, limit: 1 });
 
-        console.log({ customer });
-
         // If customer exists, return the customer object
         if (!(customer && customer.data && customer.data.length > 0)) {
             // Customer does not exist - Make API call to create a customer in Stripe
-            console.log("First time customer. Creating stripe customer...");
+            console.log(
+                "First time customer in stripe. Creating stripe customer..."
+            );
             customer = await stripe.customers.create({
                 id: userId,
                 email: email,
                 name: name,
             });
-            console.log("Customer created");
+            console.log(`Customer created in stripe with id ${userId}`);
         } else {
             customer = customer.data[0];
-            console.log("Customer data retrieved");
+            console.log(`Customer ${userId} data retrieved from stripe`);
         }
-
-        console.log({ customer });
 
         // ask cart service for cart
         sendItem("get-cart", { sessionid: "payment", id: userId });
 
         let cart = await getResponse("payment", userId);
-        console.log({ cart });
+        console.log(`Cart data of ${userId} received by payment service`);
 
         // in case user checks out on another browser or other possibilities
         if (JSON.stringify(cart) == "{}") {
@@ -159,11 +153,12 @@ app.post("/create-checkout-session", async (req, res) => {
             success_url: "http://localhost:3000/success",
             cancel_url: "http://localhost:3000/cancel",
         });
-
-        console.log({ session });
         res.redirect(session.url);
     } catch (err) {
-        console.error(err);
+        console.error("Stripe checkout error:", err);
+        res.send(
+            "Something went wrong trying to checkout. Please try again later"
+        );
     }
 });
 
@@ -186,7 +181,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
             case "checkout.session.completed":
                 const session = event.data.object;
                 // Handle checkout.session.completed event
-                console.log("Checkout session completed:", session);
+                console.log("Checkout session completed. id:", session.id);
                 sendExchange({
                     userId: session.customer,
                     checkoutId: session.id,

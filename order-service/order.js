@@ -103,7 +103,10 @@ Promise.all([rabbitmq.connect(), mongo.connect()])
                 );
 
                 // Find all orders with _id matching the regex
-                const orders = (await Orders.findById(userId)).orders;
+                const orders = await Orders.findById(userId);
+                if (orders) {
+                    orders = orders.orders
+                }
 
                 // Respond to frontend service
                 await sendItem(conn, sessionid, { corrId, orders });
